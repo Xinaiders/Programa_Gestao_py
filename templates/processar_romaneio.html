@@ -1,0 +1,651 @@
+{% extends "base.html" %}
+
+{% block title %}Processar Romaneio - {{ romaneio.id_impressao }}{% endblock %}
+
+{% block styles %}
+<style>
+.processar-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.romaneio-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.item-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.item-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.qtd-input {
+    width: 100px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.status-badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+}
+
+.status-pendente {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-tratado {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.disabled-input {
+    background-color: #f8f9fa !important;
+    color: #6c757d !important;
+    cursor: not-allowed !important;
+}
+
+.status-parcial {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.status-concluida {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-excesso {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.resumo-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.btn-processar {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    color: white;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 10px;
+    transition: transform 0.2s ease;
+}
+
+.btn-processar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.alta-demanda-icon {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+}
+
+.codigo-badge {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.quantidade-badge {
+    background: #e8f5e8;
+    color: #2e7d32;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.estoque-badge {
+    background: #fff3e0;
+    color: #f57c00;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.saldo-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.saldo-badge.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.saldo-badge.danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.saldo-badge.secondary {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.separado-badge {
+    background: #d1ecf1;
+    color: #0c5460;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.quantity-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid processar-container">
+    <!-- Cabeçalho -->
+    <div class="row">
+        <div class="col-12">
+            <div class="romaneio-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-3">
+                            <i class="fas fa-clipboard-check me-2"></i>Processar Romaneio
+                        </h1>
+                        <p class="mb-0 fs-5">
+                            <strong>ID:</strong> {{ romaneio.id_impressao }} | 
+                            <strong>Total de Itens:</strong> {{ romaneio.total_itens }} | 
+                            <strong>Status:</strong> 
+                            <span class="badge bg-warning">{{ romaneio.status }}</span>
+                        </p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('controle_impressoes') }}" class="btn btn-outline-light">
+                            <i class="fas fa-arrow-left me-1"></i>Voltar
+                        </a>
+                        <button type="button" class="btn btn-light" onclick="atualizarResumo()">
+                            <i class="fas fa-sync-alt me-1"></i>Atualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo da Separação -->
+    <div class="row">
+        <div class="col-12">
+            <div class="resumo-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-pie me-2"></i>Resumo da Separação
+                </h5>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="p-3">
+                            <div class="fs-2 fw-bold text-primary" id="totalItens">{{ romaneio.total_itens }}</div>
+                            <div class="text-muted">Total de Itens</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3">
+                            <div class="fs-2 fw-bold text-success" id="itensSeparados">0</div>
+                            <div class="text-muted">Itens Separados</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3">
+                            <div class="fs-2 fw-bold text-warning" id="itensPendentes">{{ romaneio.total_itens }}</div>
+                            <div class="text-muted">Itens Pendentes</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3">
+                            <div class="fs-2 fw-bold text-info" id="percentualConcluido">0%</div>
+                            <div class="text-muted">% Concluído</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Separação de Materiais -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-boxes me-2"></i>Separação de Materiais
+                    </h5>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Preencha a quantidade que será separada para cada item. O campo "Já separado" mostra quantidades processadas anteriormente.
+                    </small>
+                </div>
+                <div class="card-body">
+                    {% if itens %}
+                    <form id="processamentoForm">
+                        {% for item in itens %}
+                        <div class="item-card">
+                            <!-- Cabeçalho do Item -->
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-primary me-2">Item {{ loop.index }}</span>
+                                        <span class="codigo-badge me-2">{{ item.codigo }}</span>
+                                        <span class="badge bg-secondary me-2">{{ item.unidade or 'UN' }}</span>
+                                        <span class="badge bg-warning">{{ item.status_item }}</span>
+                                    </div>
+                                    <h6 class="mb-1">{{ item.descricao }}</h6>
+                                    <small class="text-muted">
+                                        <i class="fas fa-user me-1"></i>{{ item.solicitante }} | 
+                                        <i class="fas fa-calendar me-1"></i>{{ item.data }}
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <!-- Quantidades -->
+                            <div class="row mb-3">
+                                <div class="col-md-2 text-center">
+                                    <div class="quantity-card">
+                                        <small class="text-muted d-block">Solicitado</small>
+                                        <span class="quantidade-badge">{{ item.quantidade }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <div class="quantity-card">
+                                        <small class="text-muted d-block">Estoque</small>
+                                        <span class="estoque-badge">{{ item.saldo_estoque }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <div class="quantity-card">
+                                        <small class="text-muted d-block">Saldo</small>
+                                        <span class="saldo-badge {{ 'success' if item.saldo_atual > 0 else 'danger' if item.saldo_atual == 0 else 'secondary' }}">
+                                            {{ item.saldo_atual }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <div class="quantity-card">
+                                        <small class="text-muted d-block">Já Separado</small>
+                                        <span class="separado-badge">{{ item.qtd_separada_atual }}</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="quantity-card">
+                                        <small class="text-muted d-block">Qtd Separada</small>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   class="form-control qtd-input {% if item.status_item == 'Tratado' %}disabled-input{% endif %}" 
+                                                   name="qtd_separada_{{ item.id_solicitacao }}"
+                                                   id="qtd_{{ item.id_solicitacao }}"
+                                                   value="0" 
+                                                   min="0" 
+                                                   max="{{ item.quantidade + item.qtd_separada_atual }}"
+                                                   data-quantidade="{{ item.quantidade }}"
+                                                   data-qtd-atual="{{ item.qtd_separada_atual }}"
+                                                   data-status="{{ item.status_item }}"
+                                                   {% if item.status_item == 'Tratado' %}disabled readonly{% endif %}
+                                                   onchange="calcularStatus('{{ item.id_solicitacao }}')">
+                                            <span class="input-group-text">unid</span>
+                                        </div>
+                                        {% if item.status_item == 'Tratado' %}
+                                        <small class="text-warning">⚠️ Item já processado</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Status e Observações -->
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">Status:</span>
+                                        <span class="status-badge {% if item.status_item == 'Tratado' %}status-tratado{% else %}status-pendente{% endif %}" id="status_{{ item.id_solicitacao }}">
+                                            {{ item.status_item }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-comment"></i>
+                                        </span>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               name="observacoes_{{ item.id_solicitacao }}"
+                                               placeholder="Observações do item...">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Alta Demanda -->
+                            {% if item.alta_demanda %}
+                            <div class="row mt-2">
+                                <div class="col-12">
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-fire me-1"></i>Alta Demanda
+                                    </span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning text-center">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Nenhum item encontrado para este romaneio!</strong><br>
+                        <small>Verifique se o romaneio foi criado corretamente ou se há itens associados a ele.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Observações Gerais -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sticky-note me-2"></i>Observações Gerais
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <textarea class="form-control" 
+                              rows="3" 
+                              name="observacoes_gerais"
+                              placeholder="Observações gerais sobre a separação..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botão de Processar -->
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <button type="button" class="btn btn-processar" onclick="processarRomaneio()">
+                <i class="fas fa-check me-2"></i>Salvar e Processar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Processamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja processar este romaneio?</p>
+                <div id="resumoProcessamento"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmarProcessamento()">
+                    <i class="fas fa-check me-1"></i>Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Limpar e sobrescrever funções conflitantes que podem estar causando erro
+console.log('🧹 Limpando funções conflitantes...');
+
+// Remover funções conflitantes
+delete window.validarQuantidade;
+delete window.processarImpressao;
+
+// Sobrescrever com versões seguras
+window.validarQuantidade = function(input) {
+    try {
+        if (!input || !input.dataset) {
+            console.warn('⚠️ Input inválido para validarQuantidade');
+            return;
+        }
+        const max = parseInt(input.dataset.max) || 0;
+        const valor = parseInt(input.value) || 0;
+        
+        if (valor > max) {
+            input.value = max;
+        }
+        if (valor < 0) {
+            input.value = 0;
+        }
+    } catch (error) {
+        console.error('❌ Erro em validarQuantidade:', error);
+    }
+};
+
+window.processarImpressao = function() {
+    console.log('⚠️ Função processarImpressao chamada - redirecionando para processarRomaneio');
+    if (typeof window.processarRomaneio === 'function') {
+        window.processarRomaneio();
+    } else {
+        console.error('❌ Função processarRomaneio não encontrada');
+    }
+};
+
+console.log('✅ Funções conflitantes sobrescritas com versões seguras');
+
+function calcularStatus(idSolicitacao) {
+    try {
+        const input = document.getElementById(`qtd_${idSolicitacao}`);
+        if (!input) {
+            console.error(`❌ Input não encontrado: qtd_${idSolicitacao}`);
+            return;
+        }
+        
+        const quantidade = parseInt(input.dataset.quantidade) || 0;
+        const qtdAtual = parseInt(input.dataset.qtdAtual) || 0;
+        const qtdNova = parseInt(input.value) || 0;
+        const qtdTotal = qtdAtual + qtdNova;
+        
+        console.log(`🔄 Calculando status para ${idSolicitacao}: qtd=${quantidade}, atual=${qtdAtual}, nova=${qtdNova}, total=${qtdTotal}`);
+        
+        const statusElement = document.getElementById(`status_${idSolicitacao}`);
+        if (!statusElement) {
+            console.warn(`⚠️ Elemento de status não encontrado: status_${idSolicitacao}`);
+            return;
+        }
+        
+        let status, statusClass;
+        if (qtdTotal < quantidade) {
+            status = 'Parcial';
+            statusClass = 'status-parcial';
+        } else if (qtdTotal === quantidade) {
+            status = 'Concluída';
+            statusClass = 'status-concluida';
+        } else {
+            status = 'Excesso';
+            statusClass = 'status-excesso';
+        }
+        
+        statusElement.textContent = status;
+        statusElement.className = `status-badge ${statusClass}`;
+        
+        atualizarResumo();
+    } catch (error) {
+        console.error(`❌ Erro em calcularStatus:`, error);
+    }
+}
+
+function atualizarResumo() {
+    const inputs = document.querySelectorAll('input[id^="qtd_"]');
+    let totalItens = 0;
+    let itensSeparados = 0;
+    
+    inputs.forEach(input => {
+        const qtdAtual = parseInt(input.dataset.qtdAtual);
+        const qtdNova = parseInt(input.value) || 0;
+        const qtdTotal = qtdAtual + qtdNova;
+        
+        totalItens++;
+        if (qtdTotal > 0) {
+            itensSeparados++;
+        }
+    });
+    
+    const itensPendentes = totalItens - itensSeparados;
+    const percentualConcluido = totalItens > 0 ? Math.round((itensSeparados / totalItens) * 100) : 0;
+    
+    document.getElementById('itensSeparados').textContent = itensSeparados;
+    document.getElementById('itensPendentes').textContent = itensPendentes;
+    document.getElementById('percentualConcluido').textContent = percentualConcluido + '%';
+}
+
+function processarRomaneio() {
+    console.log('🔄 Iniciando coleta de dados...');
+    
+    // Coletar dados do formulário
+    const itens = [];
+    const inputs = document.querySelectorAll('input[id^="qtd_"]');
+    
+    console.log(`📋 Encontrados ${inputs.length} inputs de quantidade`);
+    
+    inputs.forEach((input, index) => {
+        const idSolicitacao = input.id.replace('qtd_', '');
+        const qtdSeparada = parseInt(input.value) || 0;
+        const observacoesInput = document.querySelector(`input[name="observacoes_${idSolicitacao}"]`);
+        const observacoes = observacoesInput ? observacoesInput.value : '';
+        
+        console.log(`   Item ${index + 1}: ID=${idSolicitacao}, Qtd=${qtdSeparada}, Obs=${observacoes}`);
+        
+        if (qtdSeparada > 0) {
+            itens.push({
+                id_solicitacao: idSolicitacao,
+                qtd_separada: qtdSeparada,
+                observacoes: observacoes
+            });
+        }
+    });
+    
+    console.log(`📦 Total de itens com quantidade > 0: ${itens.length}`);
+    console.log('📋 Itens coletados:', itens);
+    
+    if (itens.length === 0) {
+        alert('Por favor, preencha pelo menos uma quantidade separada.');
+        return;
+    }
+    
+    // Armazenar dados para processamento
+    window.dadosProcessamento = {
+        id_romaneio: '{{ romaneio.id_impressao }}',
+        itens: itens,
+        observacoes_gerais: document.querySelector('textarea[name="observacoes_gerais"]').value
+    };
+    
+    console.log('📋 Dados armazenados:', window.dadosProcessamento);
+    
+    // Processar diretamente (sem modal por enquanto)
+    if (confirm(`Confirma o processamento de ${itens.length} itens?`)) {
+        confirmarProcessamento();
+    }
+}
+
+function confirmarProcessamento() {
+    const dados = window.dadosProcessamento;
+    
+    console.log('🔄 Iniciando processamento...');
+    console.log('📋 Dados:', dados);
+    
+    // Mostrar loading
+    const btn = document.querySelector('.btn-processar');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processando...';
+    btn.disabled = true;
+    
+    // Enviar dados
+    console.log('📡 Enviando requisição para /salvar-processamento-romaneio');
+    console.log('📋 Dados sendo enviados:', JSON.stringify(dados, null, 2));
+    
+    fetch('/salvar-processamento-romaneio', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(dados)
+    })
+    .then(response => {
+        console.log('📡 Resposta recebida:', response);
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Dados da resposta:', data);
+        if (data.success) {
+            alert('Romaneio processado com sucesso!');
+            window.location.href = '/controle-impressoes';
+        } else {
+            alert('Erro ao processar romaneio: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erro na requisição:', error);
+        alert('Erro ao processar romaneio: ' + error.message);
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+// Inicializar resumo
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando página de processamento de romaneio');
+    
+    // Verificar se as funções estão definidas corretamente
+    console.log('🔍 Verificando funções:');
+    console.log('  - validarQuantidade:', typeof window.validarQuantidade);
+    console.log('  - processarImpressao:', typeof window.processarImpressao);
+    console.log('  - processarRomaneio:', typeof window.processarRomaneio);
+    console.log('  - calcularStatus:', typeof window.calcularStatus);
+    
+    atualizarResumo();
+});
+</script>
+{% endblock %}

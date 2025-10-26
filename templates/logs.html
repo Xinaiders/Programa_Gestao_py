@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Logs do Sistema - Sistema de Gestão de Estoque{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h3">
+            <i class="fas fa-clipboard-list me-2"></i>Logs do Sistema
+            <span class="badge bg-primary ms-2">{{ stats.total }} registros</span>
+        </h1>
+    </div>
+</div>
+
+<!-- Estatísticas -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.total }}</h4>
+                        <p class="card-text">Total de Logs</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-list fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.hoje }}</h4>
+                        <p class="card-text">Logs Hoje</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-day fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.erros }}</h4>
+                        <p class="card-text">Logs de Erro</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtros
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-2">
+                        <label for="acao" class="form-label">Ação</label>
+                        <input type="text" class="form-control" id="acao" name="acao" 
+                               value="{{ acao_filter }}" placeholder="Ex: login, baixar">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="entidade" class="form-label">Entidade</label>
+                        <input type="text" class="form-control" id="entidade" name="entidade" 
+                               value="{{ entidade_filter }}" placeholder="Ex: Solicitacao, User">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="usuario" class="form-label">Usuário</label>
+                        <input type="text" class="form-control" id="usuario" name="usuario" 
+                               value="{{ usuario_filter }}" placeholder="Nome do usuário">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">Todos</option>
+                            <option value="sucesso" {{ 'selected' if status_filter == 'sucesso' }}>Sucesso</option>
+                            <option value="erro" {{ 'selected' if status_filter == 'erro' }}>Erro</option>
+                            <option value="aviso" {{ 'selected' if status_filter == 'aviso' }}>Aviso</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="data_inicio" class="form-label">Data Início</label>
+                        <input type="date" class="form-control" id="data_inicio" name="data_inicio" 
+                               value="{{ data_inicio }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="data_fim" class="form-label">Data Fim</label>
+                        <input type="date" class="form-control" id="data_fim" name="data_fim" 
+                               value="{{ data_fim }}">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-search me-1"></i>Filtrar
+                        </button>
+                        <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary me-2">
+                            <i class="fas fa-times me-1"></i>Limpar
+                        </a>
+                        <a href="{{ url_for('export_logs', acao=acao_filter, entidade=entidade_filter, usuario=usuario_filter, status=status_filter, data_inicio=data_inicio, data_fim=data_fim) }}" 
+                           class="btn btn-success">
+                            <i class="fas fa-download me-1"></i>Exportar CSV
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de Logs -->
+<div class="card shadow">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-table me-2"></i>Registros de Log
+            <span class="badge bg-secondary ms-2">{{ logs.total }} registros encontrados</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Data/Hora</th>
+                        <th>Usuário</th>
+                        <th>Ação</th>
+                        <th>Entidade</th>
+                        <th>ID Entidade</th>
+                        <th>Detalhes</th>
+                        <th>IP</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs.items %}
+                    <tr>
+                        <td>{{ log.id }}</td>
+                        <td>
+                            <small class="text-muted">
+                                {{ log.timestamp.strftime('%d/%m/%Y') if log.timestamp else '-' }}<br>
+                                {{ log.timestamp.strftime('%H:%M:%S') if log.timestamp else '-' }}
+                            </small>
+                        </td>
+                        <td>
+                            <strong>{{ log.usuario_nome }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ log.acao }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ log.entidade }}</span>
+                        </td>
+                        <td>
+                            {% if log.entidade_id %}
+                                <code>{{ log.entidade_id }}</code>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.detalhes %}
+                                <small class="text-muted">{{ log.detalhes[:100] }}{% if log.detalhes|length > 100 %}...{% endif %}</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ log.ip_address or '-' }}</small>
+                        </td>
+                        <td>
+                            {% if log.status == 'sucesso' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>Sucesso
+                                </span>
+                            {% elif log.status == 'erro' %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times me-1"></i>Erro
+                                </span>
+                            {% elif log.status == 'aviso' %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Aviso
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ log.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginação -->
+        {% if logs.pages > 1 %}
+        <nav aria-label="Paginação dos logs">
+            <ul class="pagination justify-content-center">
+                {% if logs.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('logs', page=logs.prev_num, acao=acao_filter, entidade=entidade_filter, usuario=usuario_filter, status=status_filter, data_inicio=data_inicio, data_fim=data_fim) }}">
+                            <i class="fas fa-chevron-left"></i> Anterior
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in logs.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != logs.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('logs', page=page_num, acao=acao_filter, entidade=entidade_filter, usuario=usuario_filter, status=status_filter, data_inicio=data_inicio, data_fim=data_fim) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if logs.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('logs', page=logs.next_num, acao=acao_filter, entidade=entidade_filter, usuario=usuario_filter, status=status_filter, data_inicio=data_inicio, data_fim=data_fim) }}">
+                            Próximo <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+

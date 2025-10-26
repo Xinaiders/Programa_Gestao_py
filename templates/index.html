@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sistema de Gestão de Estoque{% endblock %}
+
+{% block styles %}
+<style>
+.dashboard-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-icon {
+    font-size: 3rem;
+    opacity: 0.8;
+}
+
+.gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-success {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.gradient-warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gradient-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.gradient-danger {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.gradient-dark {
+    background: linear-gradient(135deg, #434343 0%, #000000 100%);
+}
+
+.welcome-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    color: white;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.quick-action-btn {
+    border-radius: 15px;
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Seção de Boas-vindas -->
+<div class="welcome-section">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-tachometer-alt me-3"></i>Dashboard
+            </h1>
+            <p class="mb-0 fs-5">Bem-vindo ao Sistema de Gestão de Estoque - Visão Geral em Tempo Real</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="d-flex flex-column align-items-end">
+                <span class="fs-6 opacity-75">Última atualização</span>
+                <span class="fs-5 fw-bold">{{ stats.ultima_atualizacao }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cards de Estatísticas Principais -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card dashboard-card gradient-primary text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="stat-label mb-2">Total de Solicitações</div>
+                        <div class="stat-number">{{ stats.total_solicitacoes }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-clipboard-list stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card dashboard-card gradient-warning text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="stat-label mb-2">Abertas</div>
+                        <div class="stat-number">{{ stats.solicitacoes_abertas }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-folder-open stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card dashboard-card gradient-info text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="stat-label mb-2">Em Separação</div>
+                        <div class="stat-number">{{ stats.solicitacoes_em_separacao }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-boxes stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card dashboard-card gradient-success text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="stat-label mb-2">Concluídas</div>
+                        <div class="stat-number">{{ stats.solicitacoes_concluidas }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-double stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cards de Estatísticas Secundárias -->
+<div class="row mb-4">
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card dashboard-card gradient-dark text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="stat-label mb-2">Produtos Cadastrados</div>
+                        <div class="stat-number">{{ stats.total_produtos }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-warehouse stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card dashboard-card gradient-danger text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="stat-label mb-2">Solicitações Hoje</div>
+                        <div class="stat-number">{{ stats.solicitacoes_hoje }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-day stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card dashboard-card bg-light text-dark">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <div class="stat-label mb-2 text-muted">Taxa de Conclusão</div>
+                        <div class="stat-number">
+                            {% if stats.total_solicitacoes > 0 %}
+                                {{ ((stats.solicitacoes_concluidas / stats.total_solicitacoes) * 100) | round(1) }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-pie stat-icon text-muted"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ações Rápidas e Informações -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card dashboard-card shadow mb-4">
+            <div class="card-header bg-white border-0 py-4">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-bolt me-2"></i>Ações Rápidas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <a href="{{ url_for('solicitacoes') }}" class="btn btn-warning quick-action-btn w-100">
+                            <i class="fas fa-list me-2"></i>Ver Solicitações
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{{ url_for('controle_impressoes') }}" class="btn btn-info quick-action-btn w-100">
+                            <i class="fas fa-print me-2"></i>Controle de Romaneios
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{{ url_for('logs') }}" class="btn btn-secondary quick-action-btn w-100">
+                            <i class="fas fa-file-alt me-2"></i>Ver Logs
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <button class="btn btn-success quick-action-btn w-100" onclick="location.reload()">
+                            <i class="fas fa-sync-alt me-2"></i>Atualizar Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card dashboard-card shadow mb-4">
+            <div class="card-header bg-white border-0 py-4">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-info-circle me-2"></i>Informações do Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-column gap-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-cube me-3 text-primary"></i>
+                        <div>
+                            <div class="fw-bold">Sistema de Gestão de Estoque</div>
+                            <small class="text-muted">Versão 4.0.0</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user me-3 text-success"></i>
+                        <div>
+                            <div class="fw-bold">Usuário Logado</div>
+                            <small class="text-muted">{{ current_user.username }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-clock me-3 text-info"></i>
+                        <div>
+                            <div class="fw-bold">Última Atualização</div>
+                            <small class="text-muted">{{ stats.ultima_atualizacao }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-database me-3 text-warning"></i>
+                        <div>
+                            <div class="fw-bold">Fonte de Dados</div>
+                            <small class="text-muted">Google Sheets</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumo de Status -->
+<div class="row">
+    <div class="col-12">
+        <div class="card dashboard-card shadow mb-4">
+            <div class="card-header bg-white border-0 py-4">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-chart-bar me-2"></i>Resumo de Status das Solicitações
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="p-3">
+                            <div class="fs-1 fw-bold text-primary">{{ stats.solicitacoes_abertas }}</div>
+                            <div class="text-muted">Abertas</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3">
+                            <div class="fs-1 fw-bold text-info">{{ stats.solicitacoes_em_separacao }}</div>
+                            <div class="text-muted">Em Separação</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3">
+                            <div class="fs-1 fw-bold text-success">{{ stats.solicitacoes_concluidas }}</div>
+                            <div class="text-muted">Concluídas</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3">
+                            <div class="fs-1 fw-bold text-warning">{{ stats.solicitacoes_hoje }}</div>
+                            <div class="text-muted">Hoje</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

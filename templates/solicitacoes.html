@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitações - Sistema de Gestão de Estoque{% endblock %}
+
+{% block styles %}
+<link href="{{ url_for('static', filename='css/solicitacoes.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Simples -->
+    <div class="page-header">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-clipboard-list me-3"></i>
+                    Solicitações Ativas
+                </h1>
+                <p class="page-subtitle">{{ solicitacoes.total }} registros encontrados</p>
+            </div>
+                   <div class="d-flex gap-2">
+           <button type="button" class="btn btn-sm btn-outline-light" 
+                   id="btnImprimir"
+                   data-bs-toggle="tooltip" data-bs-placement="top" title="Criar Romaneio de Separação">
+               <i class="fas fa-clipboard-list me-1"></i>
+               Criar Romaneio
+           </button>
+                       <button type="button" class="btn btn-sm btn-outline-light" 
+                               id="btnAtualizarTabela"
+                               data-bs-toggle="tooltip" data-bs-placement="top" title="Atualizar Solicitações e Matriz de Produtos">
+                           <i class="fas fa-sync-alt me-1"></i>
+                           <span id="btnText">Atualizar Tabela</span>
+                       </button>
+                       <button type="button" class="btn btn-sm btn-outline-warning" 
+                               id="btnInvalidarCache"
+                               data-bs-toggle="tooltip" data-bs-placement="top" title="Forçar atualização dos dados (use quando mudar status manualmente)">
+                           <i class="fas fa-refresh me-1"></i>
+                           Forçar Atualização
+                       </button>
+        </div>
+    </div>
+</div>
+
+    <!-- Tabela de Solicitações -->
+    <div class="table-container">
+        <div class="table-responsive" id="tableContainer">
+            <table class="table table-modern" id="solicitacoesTable">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 3%;">
+                            <input type="checkbox" id="selectAll" class="form-check-input">
+                        </th>
+                        <th class="text-start" style="width: 12%;">Data</th>
+                        <th class="text-start" style="width: 12%;">Solicitante</th>
+                        <th class="text-start" style="width: 8%;">Código</th>
+                        <th class="text-start" style="width: 25%;">Descrição</th>
+                        <th class="text-center" style="width: 6%;">Alta Demanda</th>
+                        <th class="text-center" style="width: 6%;">Unidade</th>
+                        <th class="text-center" style="width: 6%;">Estoque</th>
+                        <th class="text-center" style="width: 8%;">Média Mensal</th>
+                        <th class="text-center" style="width: 8%;">Status</th>
+                        <th class="text-center" style="width: 5%;">Qtd</th>
+                        <th class="text-center" style="width: 6%;">Qtd. Sep.</th>
+                        <th class="text-center" style="width: 5%;">Saldo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for solicitacao in solicitacoes.items %}
+                    <tr class="table-row {{ 'urgent-row' if solicitacao.status == 'Falta' else '' }}" data-id="{{ solicitacao.id }}">
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input solicitacao-checkbox" 
+                                   value="{{ solicitacao.id }}" data-qtd="{{ solicitacao.quantidade }}" 
+                                   data-separada="{{ solicitacao.qtd_separada }}"
+                                   data-status="{{ solicitacao.status }}">
+                        </td>
+                        <td class="text-start">
+                            <div class="date-cell">
+                                {{ solicitacao.data.strftime('%d/%m/%Y') if solicitacao.data and solicitacao.data != 'NaT' else '-' }}
+                                <small class="text-muted d-block">{{ solicitacao.data.strftime('%H:%M') if solicitacao.data and solicitacao.data != 'NaT' else '' }}</small>
+                            </div>
+                        </td>
+                        <td class="text-start">
+                            <div class="solicitante-cell">
+                                <strong>{{ solicitacao.solicitante }}</strong>
+                            </div>
+                        </td>
+                        <td class="text-start">
+                            <span class="codigo-badge">{{ solicitacao.codigo }}</span>
+                        </td>
+                        <td class="text-start">
+                            <div class="descricao-cell" title="{{ solicitacao.descricao }}">
+                                {{ solicitacao.descricao[:120] }}{% if solicitacao.descricao|length > 120 %}...{% endif %}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            {% if solicitacao.alta_demanda %}
+                                <i class="fas fa-fire alta-demanda-icon" style="color: #dc3545; font-size: 1.2rem;"></i>
+                            {% else %}
+                                <i class="fas fa-snowflake alta-demanda-icon" style="color: #17a2b8; font-size: 1.2rem;"></i>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="unidade-badge">{{ solicitacao.unidade or 'UN' }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="estoque-badge {{ 'success' if solicitacao.saldo_estoque > 0 else 'danger' if solicitacao.saldo_estoque == 0 else 'secondary' }}">
+                                {{ solicitacao.saldo_estoque or 0 }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="quantity-badge info">
+                                {{ solicitacao.media_mensal or '-' }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% include 'components/status_badge.html' %}
+                        </td>
+                        <td class="text-center">
+                            <span class="quantity-badge">{{ solicitacao.quantidade }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="quantity-badge {{ 'success' if solicitacao.qtd_separada > 0 else 'secondary' }}">
+                                {{ solicitacao.qtd_separada }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="quantity-badge success">{{ solicitacao.quantidade - solicitacao.qtd_separada }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+    </div>
+</div>
+
+    <!-- Mensagem quando não há solicitações -->
+    {% if not solicitacoes.items %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-clipboard-list"></i>
+        </div>
+        <h3>Nenhuma solicitação encontrada</h3>
+        <p>Não há solicitações para exibir no momento.</p>
+                </div>
+                {% endif %}
+            </div>
+                    
+<!-- Modal de Carregamento -->
+<div class="modal fade" id="modalCarregamento" tabindex="-1" aria-labelledby="modalCarregamentoLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                    <div class="mb-3">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+                <h5 class="mb-3">Atualizando Dados</h5>
+                <p class="text-muted mb-3">Sincronizando Solicitações e Matriz de Produtos...</p>
+                
+                <!-- Barra de Progresso -->
+                <div class="progress mb-3" style="height: 25px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         id="progressBar" 
+                         style="width: 0%"
+                         aria-valuenow="0" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        <span id="progressText">0%</span>
+                    </div>
+                </div>
+                
+                <!-- Status -->
+                <div class="mt-3">
+                    <small class="text-muted" id="statusText">Iniciando atualização dos dados...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Carregamento para Impressão -->
+<div class="modal fade" id="modalCarregamentoImpressao" tabindex="-1" aria-labelledby="modalCarregamentoImpressaoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalCarregamentoImpressaoLabel">
+                    <i class="fas fa-print me-2"></i>Processando Romaneio
+                </h5>
+            </div>
+            <div class="modal-body text-center py-4">
+                <!-- Spinner -->
+                    <div class="mb-3">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    </div>
+                
+                <!-- Progresso -->
+                    <div class="mb-3">
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                             role="progressbar" 
+                             id="progressBarImpressao" 
+                             style="width: 0%"
+                             aria-valuenow="0" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="fw-bold text-primary" id="progressTextImpressao">0%</span>
+                    </div>
+                </div>
+                
+                <!-- Status -->
+                <div class="mt-3">
+                    <small class="text-muted" id="statusTextImpressao">Iniciando processamento...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modais -->
+{% include 'modals/solicitacao_modals.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/solicitacoes.js') }}"></script>
+<script>
+// Função para invalidar cache do Google Sheets
+function invalidarCache() {
+    const btn = document.getElementById('btnInvalidarCache');
+    const originalText = btn.innerHTML;
+    
+    // Mostrar loading
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Invalidando...';
+    btn.disabled = true;
+    
+    fetch('/api/invalidar-cache-sheets', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostrar sucesso
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Cache Invalidado!';
+            btn.classList.remove('btn-outline-warning');
+            btn.classList.add('btn-outline-success');
+            
+            // Recarregar a página após 1 segundo
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || 'Erro ao invalidar cache');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Erro';
+        btn.classList.remove('btn-outline-warning');
+        btn.classList.add('btn-outline-danger');
+        
+        // Restaurar botão após 2 segundos
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('btn-outline-danger');
+            btn.classList.add('btn-outline-warning');
+            btn.disabled = false;
+        }, 2000);
+    });
+}
+
+// Adicionar evento ao botão quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    const btnInvalidarCache = document.getElementById('btnInvalidarCache');
+    if (btnInvalidarCache) {
+        btnInvalidarCache.addEventListener('click', invalidarCache);
+    }
+});
+</script>
+{% endblock %}
