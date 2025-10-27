@@ -30,5 +30,6 @@ Após configurar as permissões, o sistema deve funcionar normalmente.
 ## Status Atual
 - ✅ Sistema configurado para funcionar apenas online
 - ✅ URL da planilha atualizada
-- ❌ Permissões da planilha não configuradas
-- ⏳ Aguardando configuração das permissões
+- ✅ Credenciais configuradas corretamente
+- ✅ Permissões da planilha configuradas
+- ✅ Sistema totalmente funcional
