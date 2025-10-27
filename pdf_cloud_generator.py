@@ -180,8 +180,11 @@ def gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino='Romaneios
 def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separacao', is_reprint=False):
     """
     Função de compatibilidade - converte HTML para dados e gera PDF
+    Salva no Cloud Storage se estiver no GCP, senão salva localmente
     """
     try:
+        import os
+        
         # Extrair dados do HTML (simulação)
         # Em produção, você pode usar BeautifulSoup para extrair dados do HTML
         itens_data = []
@@ -202,7 +205,30 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separ
             }
             itens_data.append(item)
         
-        return gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino, is_reprint)
+        # Gerar PDF
+        pdf_result = gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino, is_reprint)
+        
+        # Se estiver no Google Cloud Run, salvar também no Cloud Storage
+        is_gcp = os.environ.get('GAE_ENV') or os.environ.get('K_SERVICE')
+        if is_gcp:
+            try:
+                # Ler o PDF gerado
+                if 'file_path' in pdf_result and os.path.exists(pdf_result['file_path']):
+                    with open(pdf_result['file_path'], 'rb') as f:
+                        pdf_content = f.read()
+                    
+                    # Salvar no Cloud Storage
+                    from salvar_pdf_gcs import salvar_pdf_gcs
+                    bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+                    gcs_path = salvar_pdf_gcs(pdf_content, romaneio_data.get('id_impressao'), bucket_name, is_reprint)
+                    
+                    if gcs_path:
+                        print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
+                        pdf_result['gcs_path'] = gcs_path
+            except Exception as e:
+                print(f"⚠️ Erro ao salvar no Cloud Storage (continuando): {e}")
+        
+        return pdf_result
         
     except Exception as e:
         print(f"❌ Erro ao processar HTML: {e}")

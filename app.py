@@ -3043,48 +3043,71 @@ def controle_impressoes():
 @app.route('/imprimir-romaneio/<id_impressao>')
 @login_required
 def imprimir_romaneio(id_impressao):
-    """Imprime o PDF salvo do romaneio diretamente da pasta"""
+    """Imprime o PDF salvo do romaneio"""
     try:
         import os
-        from flask import send_file
+        from flask import send_file, Response
         
         print(f"🖨️ Buscando PDF do romaneio: {id_impressao}")
         
-        # Caminho da pasta onde os PDFs são salvos
-        pasta_pdfs = 'Romaneios_Separacao'
+        # Verificar se está no Google Cloud
+        is_gcp = os.environ.get('GAE_ENV') or os.environ.get('K_SERVICE')
         
-        # Nome do arquivo PDF original
-        nome_arquivo_original = f"{id_impressao}.pdf"
-        caminho_original = os.path.join(pasta_pdfs, nome_arquivo_original)
-        
-        # Nome do arquivo PDF de cópia (se existir)
-        nome_arquivo_copia = f"{id_impressao}_Copia.pdf"
-        caminho_copia = os.path.join(pasta_pdfs, nome_arquivo_copia)
-        
-        # Priorizar o PDF original, mas aceitar cópia se necessário
-        if os.path.exists(caminho_original):
-            print(f"✅ PDF original encontrado: {caminho_original}")
-            return send_file(
-                caminho_original,
-                as_attachment=False,  # Abrir no navegador em vez de baixar
-                mimetype='application/pdf',
-                download_name=nome_arquivo_original
-            )
-        elif os.path.exists(caminho_copia):
-            print(f"✅ PDF de cópia encontrado: {caminho_copia}")
-            return send_file(
-                caminho_copia,
-                as_attachment=False,  # Abrir no navegador em vez de baixar
-                mimetype='application/pdf',
-                download_name=nome_arquivo_copia
-            )
+        if is_gcp:
+            # Cloud Run: buscar do Cloud Storage
+            try:
+                from salvar_pdf_gcs import buscar_pdf_gcs
+                pdf_content = buscar_pdf_gcs(id_impressao)
+                
+                if pdf_content:
+                    print(f"✅ PDF encontrado no Cloud Storage")
+                    return Response(
+                        pdf_content,
+                        mimetype='application/pdf',
+                        headers={'Content-Disposition': f'inline; filename="{id_impressao}.pdf"'}
+                    )
+                else:
+                    print(f"❌ PDF não encontrado no Cloud Storage")
+                    flash(f'PDF do romaneio {id_impressao} não encontrado', 'error')
+                    return redirect(url_for('controle_impressoes'))
+            except Exception as e:
+                print(f"❌ Erro ao buscar PDF do Cloud Storage: {e}")
+                flash('Erro ao buscar PDF', 'error')
+                return redirect(url_for('controle_impressoes'))
         else:
-            print(f"❌ PDF não encontrado: {caminho_original} ou {caminho_copia}")
-            flash(f'PDF do romaneio {id_impressao} não encontrado', 'error')
-            return redirect(url_for('controle_impressoes'))
+            # Desenvolvimento local: buscar da pasta local
+            pasta_pdfs = 'Romaneios_Separacao'
+            nome_arquivo_original = f"{id_impressao}.pdf"
+            caminho_original = os.path.join(pasta_pdfs, nome_arquivo_original)
+            
+            nome_arquivo_copia = f"{id_impressao}_Copia.pdf"
+            caminho_copia = os.path.join(pasta_pdfs, nome_arquivo_copia)
+            
+            if os.path.exists(caminho_original):
+                print(f"✅ PDF original encontrado localmente: {caminho_original}")
+                return send_file(
+                    caminho_original,
+                    as_attachment=False,
+                    mimetype='application/pdf',
+                    download_name=nome_arquivo_original
+                )
+            elif os.path.exists(caminho_copia):
+                print(f"✅ PDF de cópia encontrado localmente: {caminho_copia}")
+                return send_file(
+                    caminho_copia,
+                    as_attachment=False,
+                    mimetype='application/pdf',
+                    download_name=nome_arquivo_copia
+                )
+            else:
+                print(f"❌ PDF não encontrado localmente: {caminho_original}")
+                flash(f'PDF do romaneio {id_impressao} não encontrado', 'error')
+                return redirect(url_for('controle_impressoes'))
             
     except Exception as e:
         print(f"❌ Erro ao imprimir romaneio: {e}")
+        import traceback
+        traceback.print_exc()
         flash('Erro ao abrir PDF do romaneio', 'error')
         return redirect(url_for('controle_impressoes'))
 
