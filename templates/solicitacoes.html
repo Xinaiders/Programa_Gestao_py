@@ -19,6 +19,12 @@
                 <p class="page-subtitle">{{ solicitacoes.total }} registros encontrados</p>
             </div>
                    <div class="d-flex gap-2">
+           <button type="button" class="btn btn-sm btn-danger" 
+                   id="btnVerFaltas"
+                   data-bs-toggle="tooltip" data-bs-placement="top" title="Ver Itens em Falta">
+               <i class="fas fa-exclamation-triangle me-1"></i>
+               Ver Faltas
+           </button>
            <button type="button" class="btn btn-sm btn-outline-light" 
                    id="btnImprimir"
                    data-bs-toggle="tooltip" data-bs-placement="top" title="Criar Romaneio de Separação">
@@ -31,15 +37,93 @@
                            <i class="fas fa-sync-alt me-1"></i>
                            <span id="btnText">Atualizar Tabela</span>
                        </button>
-                       <button type="button" class="btn btn-sm btn-outline-warning" 
-                               id="btnInvalidarCache"
-                               data-bs-toggle="tooltip" data-bs-placement="top" title="Forçar atualização dos dados (use quando mudar status manualmente)">
-                           <i class="fas fa-refresh me-1"></i>
-                           Forçar Atualização
-                       </button>
         </div>
     </div>
 </div>
+
+    <!-- Filtros -->
+    <div class="filters-container">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtros
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- Primeira linha de filtros -->
+                    <div class="col-md-3">
+                        <label class="form-label">Data/Horário</label>
+                        <div class="input-group">
+                            <input type="date" class="form-control" id="filtroData" placeholder="Selecione a data">
+                            <button class="btn btn-outline-secondary" type="button" id="limparData">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Solicitante</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="filtroSolicitante" placeholder="Digite o nome">
+                            <button class="btn btn-outline-secondary" type="button" id="limparSolicitante">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Código</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="filtroCodigo" placeholder="Digite o código exato">
+                            <button class="btn btn-outline-secondary" type="button" id="limparCodigo">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Status</label>
+                        <div class="input-group">
+                            <select class="form-select" id="filtroStatus">
+                                <option value="">Todos os Status</option>
+                                <option value="Aberta">Aberta</option>
+                                <option value="Em Separação">Em Separação</option>
+                                <option value="Parcial">Parcial</option>
+                                <option value="Concluída">Concluída</option>
+                                <option value="Falta">Falta</option>
+                            </select>
+                            <button class="btn btn-outline-secondary" type="button" id="limparStatus">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Segunda linha - Botões de Ação -->
+                    <div class="col-md-12">
+                        <div class="d-flex gap-2 justify-content-end mt-3">
+                            <button type="button" class="btn btn-primary" id="aplicarFiltros">
+                                <i class="fas fa-search me-1"></i>Filtrar
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="limparFiltros">
+                                <i class="fas fa-eraser me-1"></i>Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status dos Filtros -->
+                <div class="row mt-3" id="statusFiltros" style="display: none;">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <span id="textoStatusFiltros"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Tabela de Solicitações -->
     <div class="table-container">
@@ -283,6 +367,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnInvalidarCache = document.getElementById('btnInvalidarCache');
     if (btnInvalidarCache) {
         btnInvalidarCache.addEventListener('click', invalidarCache);
+    }
+    
+    // Botão Ver Faltas
+    const btnVerFaltas = document.getElementById('btnVerFaltas');
+    if (btnVerFaltas) {
+        btnVerFaltas.addEventListener('click', function() {
+            window.location.href = "{{ url_for('solicitacoes_falta') }}";
+        });
     }
 });
 </script>

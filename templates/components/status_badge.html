@@ -1,5 +1,7 @@
 {% if solicitacao.status == 'Aberta' or solicitacao.status == 'ABERTA' %}
-    <span class="badge bg-secondary">Aberta</span>
+    <span class="badge bg-success text-white" style="background: linear-gradient(45deg, #28a745, #20c997) !important; animation: pulse 2s infinite;">
+        <i class="fas fa-star me-1"></i>Aberta
+    </span>
 {% elif solicitacao.status == 'pendente' or solicitacao.status == 'Pendente' %}
     <span class="badge bg-warning text-dark">Pendente</span>
 {% elif solicitacao.status == 'aprovada' or solicitacao.status == 'Aprovada' %}

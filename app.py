@@ -19,8 +19,28 @@ import time
 from functools import lru_cache
 
 app = Flask(__name__)
+
+# Configuração do SECRET_KEY - Usar variável de ambiente no Google Cloud
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///estoque.db')
+
+# Configuração do banco de dados
+# Se estiver no Google Cloud, usar Cloud SQL
+if os.environ.get('GAE_ENV'):  # Google App Engine
+    db_user = os.environ.get('DB_USER', 'root')
+    db_pass = os.environ.get('DB_PASS', '')
+    db_name = os.environ.get('DB_NAME', 'estoque')
+    cloud_sql_connection_name = os.environ.get('CLOUD_SQL_CONNECTION_NAME')
+    
+    if cloud_sql_connection_name:
+        # Usar Cloud SQL
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{db_user}:{db_pass}@/{db_name}?unix_socket=/cloudsql/{cloud_sql_connection_name}'
+    else:
+        # Fallback para SQLite no Cloud Storage
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///estoque.db')
+else:
+    # Desenvolvimento local
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///estoque.db')
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -139,6 +159,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
@@ -644,10 +665,16 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
             }
             itens_data.append(item)
         
+        # Recuperar tipo_romaneio do cache
+        tipo_romaneio = 'Romaneio de Separação'
+        if 'romaneio_info' in globals() and id_impressao in globals()['romaneio_info']:
+            tipo_romaneio = globals()['romaneio_info'][id_impressao]
+        
         # Renderizar o template HTML (igual ao que aparece na tela)
         html_content = render_template('formulario_impressao.html', 
                                      id_impressao=id_impressao,
-                                     solicitacoes=itens_data)
+                                     solicitacoes=itens_data,
+                                     tipo_romaneio=tipo_romaneio)
         
         # OTIMIZAÇÃO: Salvar PDF em thread separada para não bloquear a resposta
         def gerar_pdf_async():
@@ -1348,17 +1375,32 @@ class CompleteList:
 def get_google_sheets_connection():
     """Conecta com a planilha do Google Sheets"""
     try:
+        print("🔌 Tentando conectar com Google Sheets...")
+        
         # Configurar credenciais
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        print("📋 Carregando credenciais...")
         creds = Credentials.from_service_account_file('sistema-consulta-produtos-2c00b5872af4.json', scopes=scope)
+        print("✅ Credenciais carregadas")
+        
+        print("🔐 Autorizando cliente...")
         client = gspread.authorize(creds)
+        print("✅ Cliente autorizado")
         
         # Abrir planilha usando ID diretamente
+        print("📊 Abrindo planilha...")
         sheet = client.open_by_key('1lh__GpPF_ZyCidLskYDf48aQEwv5Z8P2laelJN9aPuE')
+        print("✅ Planilha aberta com sucesso")
+        
+        # Verificar abas disponíveis
+        worksheets = sheet.worksheets()
+        print(f"📋 Abas disponíveis: {[ws.title for ws in worksheets]}")
+        
         return sheet
         
     except Exception as e:
         print(f"❌ Erro ao conectar com Google Sheets: {e}")
+        print(f"❌ Tipo do erro: {type(e).__name__}")
         return None
 
 def criar_aba_realizar_baixa():
@@ -1848,21 +1890,108 @@ def log_activity(acao, entidade, entidade_id=None, detalhes=None, status='sucess
 @login_required
 def index():
     try:
+        print("🚀 Iniciando carregamento do dashboard...")
+        
         # Obter dados das solicitações do Google Sheets
+        print("📊 Buscando dados das solicitações...")
         solicitacoes_data = get_google_sheets_data()
         
-        # Contar por status
+        if solicitacoes_data is None:
+            print("❌ Erro: solicitacoes_data é None")
+            raise Exception("Não foi possível obter dados das solicitações")
+        
+        if isinstance(solicitacoes_data, pd.DataFrame):
+            print(f"✅ DataFrame obtido com {len(solicitacoes_data)} linhas")
+            print(f"📋 Colunas disponíveis: {list(solicitacoes_data.columns)}")
+            
+            # Converter DataFrame para lista de dicionários
+            solicitacoes_data = solicitacoes_data.to_dict('records')
+            print(f"🔄 Convertido para {len(solicitacoes_data)} registros")
+        else:
+            print(f"✅ Lista obtida com {len(solicitacoes_data)} registros")
+        
+        # Contar por status com debug
         total_solicitacoes = len(solicitacoes_data)
-        solicitacoes_abertas = len([s for s in solicitacoes_data if s.get('status', '').lower() in ['aberta', 'aberto']])
-        solicitacoes_em_separacao = len([s for s in solicitacoes_data if s.get('status', '').lower() in ['em separação', 'em_separacao']])
-        solicitacoes_concluidas = len([s for s in solicitacoes_data if s.get('status', '').lower() in ['concluida', 'concluído', 'concluido']])
+        print(f"📊 Total de solicitações encontradas: {total_solicitacoes}")
+        
+        if total_solicitacoes == 0:
+            print("⚠️ ATENÇÃO: Nenhuma solicitação encontrada!")
+            print("🔍 Verificando se há dados na planilha...")
+            # Tentar buscar dados brutos para debug
+            try:
+                sheet = get_google_sheets_connection()
+                if sheet:
+                    worksheet = sheet.get_worksheet(0)
+                    raw_data = worksheet.get_all_values()
+                    print(f"📋 Dados brutos da planilha: {len(raw_data)} linhas")
+                    if len(raw_data) > 0:
+                        print(f"📋 Primeira linha (cabeçalho): {raw_data[0]}")
+                        if len(raw_data) > 1:
+                            print(f"📋 Segunda linha (primeiro dado): {raw_data[1]}")
+            except Exception as debug_e:
+                print(f"❌ Erro no debug: {debug_e}")
+        
+        # Detectar status de forma mais robusta
+        solicitacoes_abertas = 0
+        solicitacoes_em_separacao = 0
+        solicitacoes_concluidas = 0
+        
+        for i, s in enumerate(solicitacoes_data):
+            status = str(s.get('status', '')).lower().strip()
+            if i < 3:  # Log apenas os primeiros 3 para não poluir
+                print(f"🔍 Registro {i+1} - Status: '{status}'")
+            
+            if status in ['aberta', 'aberto', 'pendente', 'nova', '']:
+                solicitacoes_abertas += 1
+            elif status in ['em separação', 'em_separacao', 'em separacao', 'separando', 'parcial']:
+                solicitacoes_em_separacao += 1
+            elif status in ['concluida', 'concluído', 'concluido', 'finalizada', 'entregue', 'concluída']:
+                solicitacoes_concluidas += 1
+        
+        print(f"📈 Contagem por status - Abertas: {solicitacoes_abertas}, Em Separação: {solicitacoes_em_separacao}, Concluídas: {solicitacoes_concluidas}")
         
         # Obter dados da matriz
         matriz_data = get_matriz_data_from_sheets()
         total_produtos = len(matriz_data) if matriz_data else 0
         
-        # Calcular estatísticas adicionais
-        solicitacoes_hoje = len([s for s in solicitacoes_data if s.get('data') and str(s.get('data')).startswith('2025-10-12')])
+        # Calcular solicitações de hoje (data atual)
+        hoje = datetime.now().strftime('%d/%m/%Y')
+        solicitacoes_hoje = 0
+        total_itens_hoje = 0
+        
+        for s in solicitacoes_data:
+            data_solicitacao = s.get('data', '')
+            if data_solicitacao:
+                try:
+                    if isinstance(data_solicitacao, str):
+                        # Tentar diferentes formatos
+                        if '/' in data_solicitacao:
+                            # Formato DD/MM/YYYY ou DD/MM/YYYY HH:MM
+                            data_parte = data_solicitacao.split(' ')[0]  # Remove hora se existir
+                            if data_parte == hoje:
+                                solicitacoes_hoje += 1
+                                quantidade = int(s.get('quantidade', 0))
+                                total_itens_hoje += quantidade
+                        elif '-' in data_solicitacao:
+                            # Formato YYYY-MM-DD
+                            data_obj = datetime.strptime(data_solicitacao.split(' ')[0], '%Y-%m-%d')
+                            if data_obj.strftime('%d/%m/%Y') == hoje:
+                                solicitacoes_hoje += 1
+                                quantidade = int(s.get('quantidade', 0))
+                                total_itens_hoje += quantidade
+                except:
+                    continue
+        
+        # Calcular produtos em baixo estoque (estoque < 10)
+        produtos_baixo_estoque = 0
+        if matriz_data:
+            for produto in matriz_data:
+                try:
+                    estoque = int(produto.get('saldo_estoque', 0))
+                    if estoque < 10:
+                        produtos_baixo_estoque += 1
+                except:
+                    continue
         
         stats = {
             'total_solicitacoes': total_solicitacoes,
@@ -1871,6 +2000,8 @@ def index():
             'solicitacoes_concluidas': solicitacoes_concluidas,
             'total_produtos': total_produtos,
             'solicitacoes_hoje': solicitacoes_hoje,
+            'produtos_baixo_estoque': produtos_baixo_estoque,
+            'total_itens_hoje': total_itens_hoje,
             'ultima_atualizacao': datetime.now().strftime('%d/%m/%Y %H:%M')
         }
         
@@ -1886,6 +2017,8 @@ def index():
             'solicitacoes_concluidas': 0,
             'total_produtos': 0,
             'solicitacoes_hoje': 0,
+            'produtos_baixo_estoque': 0,
+            'total_itens_hoje': 0,
             'ultima_atualizacao': datetime.now().strftime('%d/%m/%Y %H:%M')
         }
         return render_template('index.html', stats=stats)
@@ -1913,6 +2046,276 @@ def logout():
     log_activity('logout', 'User', current_user.id, f'Logout realizado', 'sucesso')
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/usuarios')
+@login_required
+def listar_usuarios():
+    """Lista todos os usuários do sistema"""
+    if not current_user.is_admin:
+        flash('Apenas administradores podem acessar esta página', 'error')
+        return redirect(url_for('index'))
+    
+    usuarios = User.query.all()
+    return render_template('listar_usuarios.html', usuarios=usuarios)
+
+@app.route('/criar-usuario', methods=['POST'])
+@login_required
+def criar_usuario():
+    """Cria um novo usuário"""
+    if not current_user.is_admin:
+        flash('Apenas administradores podem criar usuários', 'error')
+        return redirect(url_for('listar_usuarios'))
+    
+    try:
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        is_admin = request.form.get('is_admin') == '1'
+        
+        # Validar dados
+        if not username or not email or not password:
+            flash('Todos os campos são obrigatórios', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        if len(password) < 6:
+            flash('A senha deve ter no mínimo 6 caracteres', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        # Verificar se usuário já existe
+        if User.query.filter_by(username=username).first():
+            flash('Usuário já existe', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email já cadastrado', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        # Criar novo usuário
+        novo_usuario = User(
+            username=username,
+            email=email,
+            is_admin=is_admin
+        )
+        novo_usuario.set_password(password)
+        
+        db.session.add(novo_usuario)
+        db.session.commit()
+        
+        log_activity('criar_usuario', 'User', current_user.id, f'Usuário criado: {username}', 'sucesso')
+        
+        flash(f'✅ Usuário {username} criado com sucesso!', 'success')
+        return redirect(url_for('listar_usuarios'))
+        
+    except Exception as e:
+        print(f"❌ Erro ao criar usuário: {e}")
+        flash('Erro ao criar usuário', 'error')
+        return redirect(url_for('listar_usuarios'))
+
+@app.route('/desativar-usuario', methods=['POST'])
+@login_required
+def desativar_usuario():
+    """Desativa ou ativa um usuário"""
+    if not current_user.is_admin:
+        flash('Apenas administradores podem gerenciar usuários', 'error')
+        return redirect(url_for('listar_usuarios'))
+    
+    try:
+        user_id = request.form.get('user_id')
+        action = request.form.get('action')  # 'desativar' ou 'ativar'
+        
+        if not user_id:
+            flash('ID do usuário não fornecido', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        usuario = User.query.get(user_id)
+        
+        if not usuario:
+            flash('Usuário não encontrado', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        # Não permitir desativar a si mesmo
+        if usuario.id == current_user.id and action == 'desativar':
+            flash('Você não pode desativar a si mesmo', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        username = usuario.username
+        
+        # Desativar ou ativar
+        if action == 'desativar':
+            usuario.is_active = False
+            log_activity('desativar_usuario', 'User', current_user.id, f'Usuário desativado: {username}', 'sucesso')
+            flash(f'✅ Usuário {username} desativado com sucesso!', 'success')
+        else:
+            usuario.is_active = True
+            log_activity('ativar_usuario', 'User', current_user.id, f'Usuário ativado: {username}', 'sucesso')
+            flash(f'✅ Usuário {username} ativado com sucesso!', 'success')
+        
+        db.session.commit()
+        return redirect(url_for('listar_usuarios'))
+        
+    except Exception as e:
+        print(f"❌ Erro ao gerenciar usuário: {e}")
+        flash('Erro ao gerenciar usuário', 'error')
+        return redirect(url_for('listar_usuarios'))
+
+@app.route('/editar-email-usuario', methods=['POST'])
+@login_required
+def editar_email_usuario():
+    """Permite ao admin alterar o email de qualquer usuário"""
+    print("📧 Requisição de editar email recebida")
+    if not current_user.is_admin:
+        flash('Apenas administradores podem editar emails', 'error')
+        return redirect(url_for('listar_usuarios'))
+    
+    try:
+        user_id = request.form.get('user_id')
+        novo_email = request.form.get('novo_email')
+        
+        print(f"📧 user_id: {user_id}, novo_email: {novo_email}")
+        
+        if not user_id or not novo_email:
+            flash('Dados incompletos', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        usuario = User.query.get(user_id)
+        if not usuario:
+            flash('Usuário não encontrado', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        # Verificar se email já existe em outro usuário
+        if User.query.filter(User.email == novo_email, User.id != user_id).first():
+            flash('Este email já está em uso por outro usuário', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        email_antigo = usuario.email
+        usuario.email = novo_email
+        db.session.commit()
+        
+        log_activity('editar_email_usuario', 'User', current_user.id, 
+                    f'Email do usuário {usuario.username} alterado de {email_antigo} para {novo_email}', 'sucesso')
+        
+        print(f"✅ Email alterado com sucesso!")
+        flash(f'✅ Email do usuário {usuario.username} alterado com sucesso!', 'success')
+        return redirect(url_for('listar_usuarios'))
+        
+    except Exception as e:
+        print(f"❌ Erro ao editar email: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Erro ao editar email', 'error')
+        return redirect(url_for('listar_usuarios'))
+
+@app.route('/alterar-senha-usuario-admin', methods=['POST'])
+@login_required
+def alterar_senha_usuario_admin():
+    """Permite ao admin alterar a senha de qualquer usuário"""
+    print("🔑 Requisição de alterar senha recebida")
+    if not current_user.is_admin:
+        flash('Apenas administradores podem alterar senhas', 'error')
+        return redirect(url_for('listar_usuarios'))
+    
+    try:
+        user_id = request.form.get('user_id')
+        nova_senha = request.form.get('nova_senha')
+        confirmar_senha = request.form.get('confirmar_senha')
+        
+        print(f"🔑 user_id: {user_id}, senhas recebidas: {bool(nova_senha)}")
+        
+        if not user_id or not nova_senha or not confirmar_senha:
+            flash('Dados incompletos', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        if nova_senha != confirmar_senha:
+            flash('As senhas não coincidem', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        if len(nova_senha) < 6:
+            flash('A senha deve ter no mínimo 6 caracteres', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        usuario = User.query.get(user_id)
+        if not usuario:
+            flash('Usuário não encontrado', 'error')
+            return redirect(url_for('listar_usuarios'))
+        
+        username = usuario.username
+        usuario.set_password(nova_senha)
+        db.session.commit()
+        
+        log_activity('alterar_senha_admin', 'User', current_user.id, 
+                    f'Senha do usuário {username} alterada pelo admin', 'sucesso')
+        
+        print(f"✅ Senha alterada com sucesso!")
+        flash(f'✅ Senha do usuário {username} alterada com sucesso!', 'success')
+        return redirect(url_for('listar_usuarios'))
+        
+    except Exception as e:
+        print(f"❌ Erro ao alterar senha: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Erro ao alterar senha', 'error')
+        return redirect(url_for('listar_usuarios'))
+
+@app.route('/alterar-senha', methods=['GET', 'POST'])
+@login_required
+def alterar_senha():
+    """Permite ao usuário alterar sua própria senha"""
+    print(f"🔄 Requisição recebida: {request.method}")
+    if request.method == 'POST':
+        try:
+            print(f"📋 Dados recebidos do formulário")
+            current_password = request.form.get('current_password')
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+            
+            print(f"👤 Usuário: {current_user.username}")
+            print(f"🔑 Senha atual recebida: {'Sim' if current_password else 'Não'}")
+            print(f"🔑 Nova senha recebida: {'Sim' if new_password else 'Não'}")
+            
+            # Validar senha atual
+            print(f"🔍 Verificando senha atual...")
+            if not current_user.check_password(current_password):
+                print(f"❌ Senha atual incorreta!")
+                flash('❌ Senha atual incorreta!', 'error')
+                return render_template('alterar_senha.html')
+            print(f"✅ Senha atual correta!")
+            
+            # Validar nova senha
+            if len(new_password) < 6:
+                print(f"❌ Senha muito curta!")
+                flash('❌ A nova senha deve ter no mínimo 6 caracteres!', 'error')
+                return render_template('alterar_senha.html')
+            
+            # Verificar se senhas coincidem
+            if new_password != confirm_password:
+                print(f"❌ Senhas não coincidem!")
+                flash('❌ As senhas não coincidem!', 'error')
+                return render_template('alterar_senha.html')
+            
+            # Verificar se nova senha é diferente da atual
+            if current_user.check_password(new_password):
+                print(f"❌ Nova senha igual à atual!")
+                flash('❌ A nova senha deve ser diferente da senha atual!', 'error')
+                return render_template('alterar_senha.html')
+            
+            # Alterar senha
+            print(f"💾 Alterando senha no banco de dados...")
+            current_user.set_password(new_password)
+            db.session.commit()
+            print(f"✅ Senha alterada com sucesso!")
+            
+            # Registrar no log
+            log_activity('alterar_senha', 'User', current_user.id, f'Senha alterada com sucesso', 'sucesso')
+            
+            flash('✅ Senha alterada com sucesso!', 'success')
+            return redirect(url_for('index'))
+            
+        except Exception as e:
+            print(f"❌ Erro ao alterar senha: {e}")
+            flash('❌ Erro ao alterar senha. Tente novamente.', 'error')
+            return render_template('alterar_senha.html')
+    
+    return render_template('alterar_senha.html')
 
 @app.route('/api/pdf-status/<id_impressao>')
 @login_required
@@ -2124,9 +2527,9 @@ def solicitacoes():
     
     print(f"DEBUG: Total de registros processados: {len(solicitacoes_list)}")
     
-    # Filtrar automaticamente as concluídas para deixar a interface mais limpa
-    solicitacoes_list = [s for s in solicitacoes_list if s.status != 'Concluida']
-    print(f"DEBUG: Registros após filtrar concluídas: {len(solicitacoes_list)}")
+    # Filtrar automaticamente as concluídas, faltas e finalizadas para deixar a interface mais limpa
+    solicitacoes_list = [s for s in solicitacoes_list if s.status != 'Concluida' and s.status != 'Falta' and s.status != 'Finalizado']
+    print(f"DEBUG: Registros após filtrar concluídas e faltas: {len(solicitacoes_list)}")
     
     # Aplicar busca por código se especificado
     if codigo_search:
@@ -2312,6 +2715,52 @@ def atualizar_status_para_em_separacao(codigos):
         print(f"❌ Erro ao atualizar status para Em Separação: {e}")
         return False
 
+@app.route('/solicitacoes/falta')
+@login_required
+def solicitacoes_falta():
+    """Página de solicitações com status FALTA"""
+    codigo_search = request.args.get('codigo', '')
+    
+    print(f"🔍 Página de FALTAS - Busca por código: '{codigo_search}'")
+    
+    # Consultar planilha em tempo real
+    df = get_google_sheets_data()
+    
+    if df is None or df.empty:
+        print("❌ Erro: Não foi possível conectar com Google Sheets")
+        flash('❌ Erro: Não foi possível conectar com a planilha do Google Sheets. A conta de serviço precisa ter acesso à planilha. Verifique as permissões e tente novamente.', 'error')
+        return render_template('solicitacoes_falta.html', 
+                             solicitacoes=CompleteList([]), 
+                             codigo_search=codigo_search,
+                             contagens={'falta': 0, 'total': 0})
+    
+    # Processar dados da planilha
+    solicitacoes_list = process_google_sheets_data(df)
+    
+    # Filtrar APENAS itens com status "Falta"
+    solicitacoes_list = [s for s in solicitacoes_list if s.status == 'Falta']
+    print(f"📊 Total de itens com status FALTA: {len(solicitacoes_list)}")
+    
+    # Aplicar busca por código se especificado
+    if codigo_search:
+        codigo_search_clean = codigo_search.strip()
+        solicitacoes_list = [s for s in solicitacoes_list if str(s.codigo).strip() == codigo_search_clean]
+        print(f"📊 Após filtro por código: {len(solicitacoes_list)} registros")
+    
+    # Criar objeto CompleteList
+    solicitacoes_completas = CompleteList(solicitacoes_list)
+    
+    # Contagens
+    contagens = {
+        'falta': len(solicitacoes_list),
+        'total': len(solicitacoes_list)
+    }
+    
+    return render_template('solicitacoes_falta.html', 
+                         solicitacoes=solicitacoes_completas,
+                         codigo_search=codigo_search,
+                         contagens=contagens)
+
 @app.route('/solicitacoes/print')
 @login_required
 def print_solicitacoes():
@@ -2339,8 +2788,8 @@ def print_solicitacoes():
     status_unicos = list(set([s.status for s in solicitacoes_list]))
     print(f"DEBUG PRINT: Status únicos encontrados: {status_unicos}")
     
-    # Filtrar automaticamente as concluídas para deixar a interface mais limpa
-    solicitacoes_list = [s for s in solicitacoes_list if s.status != 'Concluida']
+    # Filtrar automaticamente as concluídas e finalizadas para deixar a interface mais limpa
+    solicitacoes_list = [s for s in solicitacoes_list if s.status != 'Concluida' and s.status != 'Finalizado']
     print(f"DEBUG PRINT: Total de registros após filtrar concluídas: {len(solicitacoes_list)}")
     
     # Aplicar filtro por status se especificado
@@ -2422,6 +2871,10 @@ def formulario_impressao():
         ids_selecionados = request.args.get('ids', '').split(',')
         ids_selecionados = [id.strip() for id in ids_selecionados if id.strip()]
         
+        # Verificar se veio da página de faltas
+        origem = request.args.get('origem', '')
+        tipo_romaneio = 'Itens em Falta' if origem == 'falta' else 'Romaneio de Separação'
+        
         if not ids_selecionados:
             flash('Nenhuma solicitação selecionada', 'warning')
             return redirect(url_for('solicitacoes'))
@@ -2446,6 +2899,11 @@ def formulario_impressao():
             observacoes=""  # Deixar vazio - observações serão preenchidas no processamento
         )
         
+        # Guardar tipo_romaneio em cache para usar na geração do PDF
+        if 'romaneio_info' not in globals():
+            globals()['romaneio_info'] = {}
+        globals()['romaneio_info'][id_impressao] = tipo_romaneio
+        
         if not id_impressao:
             flash('Erro ao criar controle de impressão', 'error')
             return redirect(url_for('solicitacoes'))
@@ -2453,7 +2911,9 @@ def formulario_impressao():
         return render_template('formulario_impressao.html', 
                              solicitacoes=solicitacoes_selecionadas,
                              ids_selecionados=ids_selecionados,
-                             id_impressao=id_impressao)
+                             id_impressao=id_impressao,
+                             tipo_romaneio=tipo_romaneio,
+                             origem=origem)
         
     except Exception as e:
         print(f"❌ Erro ao carregar formulário de impressão: {e}")
@@ -2872,7 +3332,7 @@ def buscar_solicitacoes_ativas(limite=None, offset=0):
         print(f"❌ Erro ao buscar solicitações ativas: {e}")
         return None, None
 
-def processar_baixa_item(id_solicitacao, qtd_separada, observacoes, solicitacoes_ativas, header):
+def processar_baixa_item(id_solicitacao, qtd_separada, observacoes, solicitacoes_ativas, header, status_especial=None):
     """Processa a baixa de um item específico - OTIMIZADO"""
     try:
         # ID_SOLICITACAO está na coluna P (índice 15)
@@ -2951,8 +3411,13 @@ def processar_baixa_item(id_solicitacao, qtd_separada, observacoes, solicitacoes
         print(f"   Saldo: {quantidade_solicitada} - {qtd_separada_total} = {saldo}")
         
         # Determinar status - OTIMIZAÇÃO: usar operador ternário
-        status = ('Parcial' if qtd_separada_total < quantidade_solicitada else
-                 'Concluida' if qtd_separada_total == quantidade_solicitada else 'Excesso')
+        if status_especial:
+            status = status_especial
+            print(f"🎯 Status especial aplicado: {status}")
+        else:
+            status = ('Parcial' if qtd_separada_total < quantidade_solicitada else
+                     'Concluida' if qtd_separada_total == quantidade_solicitada else 'Excesso')
+            print(f"📊 Status calculado automaticamente: {status}")
         
         # Preparar atualização
         atualizacao = {
@@ -3211,10 +3676,79 @@ def salvar_processamento_romaneio():
         id_romaneio = data.get('id_romaneio')
         itens_processados = data.get('itens', [])
         observacoes_gerais = data.get('observacoes_gerais', '')
+        checkbox_data = data.get('checkbox_data', {})
         
         print(f"📦 Processando romaneio {id_romaneio} com {len(itens_processados)} itens")
         print(f"🔍 Dados do formulário recebidos: {itens_processados}")
         print(f"📝 Observações gerais: '{observacoes_gerais}'")
+        print(f"📋 Dados dos checkboxes: {checkbox_data}")
+        
+        # Processar checkboxes primeiro
+        if checkbox_data:
+            excluir_items = checkbox_data.get('excluir', [])
+            falta_items = checkbox_data.get('falta', [])
+            
+            print(f"🗑️ Processando {len(excluir_items)} itens para EXCLUIR (Finalizado)")
+            print(f"⚠️ Processando {len(falta_items)} itens para FALTA")
+            
+            # Processar itens para excluir (status = Finalizado)
+            for item_excluir in excluir_items:
+                item_id = item_excluir['id']
+                observacao = item_excluir['observacao']
+                qtd_separada = int(item_excluir.get('qtd_separada', 0))
+                print(f"🗑️ Marcando item {item_id} como FINALIZADO - Obs: '{observacao}', Qtd: {qtd_separada}")
+                
+                # Verificar se já existe este item nos itens_processados
+                item_existente = None
+                for item in itens_processados:
+                    if item.get('id_solicitacao') == item_id:
+                        item_existente = item
+                        break
+                
+                if item_existente:
+                    # Atualizar item existente com status especial
+                    item_existente['status_especial'] = 'Finalizado'
+                    item_existente['observacoes'] = observacao
+                else:
+                    # Adicionar aos itens processados com status especial
+                    item_excluir_data = {
+                        'id_solicitacao': item_id,
+                        'qtd_separada': qtd_separada,
+                        'observacoes': observacao,
+                        'excluir': True,
+                        'status_especial': 'Finalizado'
+                    }
+                    itens_processados.append(item_excluir_data)
+            
+            # Processar itens para falta (status = Falta)
+            for item_falta in falta_items:
+                item_id = item_falta['id']
+                observacao = item_falta['observacao']
+                qtd_separada = int(item_falta.get('qtd_separada', 0))
+                print(f"⚠️ Marcando item {item_id} como FALTA - Obs: '{observacao}', Qtd: {qtd_separada}")
+                
+                # Verificar se já existe este item nos itens_processados
+                item_existente = None
+                for item in itens_processados:
+                    if item.get('id_solicitacao') == item_id:
+                        item_existente = item
+                        break
+                
+                if item_existente:
+                    # Atualizar item existente com status especial
+                    item_existente['status_especial'] = 'Falta'
+                    if observacao:
+                        item_existente['observacoes'] = observacao
+                else:
+                    # Adicionar aos itens processados com status especial
+                    item_falta_data = {
+                        'id_solicitacao': item_id,
+                        'qtd_separada': qtd_separada,
+                        'observacoes': observacao,
+                        'falta': True,
+                        'status_especial': 'Falta'
+                    }
+                    itens_processados.append(item_falta_data)
         
         # 1. Buscar apenas solicitações ativas (otimizado)
         solicitacoes_ativas, header = buscar_solicitacoes_ativas()
@@ -3271,17 +3805,19 @@ def salvar_processamento_romaneio():
             if not dados_formulario:
                 qtd_separada = 0
                 observacoes = ''
+                status_especial = None
                 print(f"⚠️ Item {id_solicitacao} não encontrado no formulário - usando valores padrão (Qtd: 0)")
             else:
                 qtd_separada = int(dados_formulario.get('qtd_separada', 0))
                 observacoes = dados_formulario.get('observacoes', '')
-                print(f"✅ Item {id_solicitacao} encontrado no formulário - Qtd: {qtd_separada}, Obs: '{observacoes}'")
+                status_especial = dados_formulario.get('status_especial')
+                print(f"✅ Item {id_solicitacao} encontrado no formulário - Qtd: {qtd_separada}, Obs: '{observacoes}', Status Especial: {status_especial}")
             
             # Processar item (SEMPRE, mesmo com quantidade zero)
             print(f"🔄 Processando item {id_solicitacao} com quantidade {qtd_separada}...")
             resultado = processar_baixa_item(
                 id_solicitacao, qtd_separada, observacoes, 
-                solicitacoes_ativas, header
+                solicitacoes_ativas, header, status_especial
             )
             
             if resultado:
@@ -4649,15 +5185,7 @@ if __name__ == '__main__':
                     "CREATE INDEX IF NOT EXISTS idx_user_username ON user (username)",
                     "CREATE INDEX IF NOT EXISTS idx_user_email ON user (email)",
                     "CREATE INDEX IF NOT EXISTS idx_produto_codigo ON produto (codigo)",
-                    "CREATE INDEX IF NOT EXISTS idx_produto_categoria ON produto (categoria)",
-                    "CREATE INDEX IF NOT EXISTS idx_estoque_produto_id ON estoque (produto_id)",
-                    "CREATE INDEX IF NOT EXISTS idx_estoque_localizacao ON estoque (localizacao)",
-                    "CREATE INDEX IF NOT EXISTS idx_movimentacao_produto_id ON movimentacao (produto_id)",
-                    "CREATE INDEX IF NOT EXISTS idx_movimentacao_data ON movimentacao (data_movimentacao)",
-                    "CREATE INDEX IF NOT EXISTS idx_movimentacao_tipo ON movimentacao (tipo)",
-                    "CREATE INDEX IF NOT EXISTS idx_log_activity_user_id ON log_activity (user_id)",
-                    "CREATE INDEX IF NOT EXISTS idx_log_activity_timestamp ON log_activity (timestamp)",
-                    "CREATE INDEX IF NOT EXISTS idx_log_activity_action ON log_activity (action)"
+                    "CREATE INDEX IF NOT EXISTS idx_produto_categoria ON produto (categoria)"
                 ]
                 
                 for indice in indices:
@@ -4673,10 +5201,11 @@ if __name__ == '__main__':
         
         # Criar usuário admin padrão se não existir
         if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin', email='admin@estoque.com', is_admin=True)
+            admin = User(username='admin', email='marcosvinicius.info@gmail.com', is_admin=True)
             admin.set_password('admin123')
             db.session.add(admin)
             db.session.commit()
-            print("Usuário admin criado: admin / admin123")
+            print("✅ Usuário admin criado: admin / admin123")
+            print("💡 Para criar mais usuários, execute: python criar_usuarios.py")
     
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

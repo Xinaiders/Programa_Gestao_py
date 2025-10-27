@@ -5,43 +5,57 @@
 {% block styles %}
 <style>
 .processar-container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
 }
 
 .romaneio-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    border-radius: 15px;
-    padding: 2rem;
-    margin-bottom: 2rem;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
 }
 
 .item-card {
     border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    padding: 1.5rem;
+    border-radius: 8px;
+    padding: 1.2rem;
     margin-bottom: 1rem;
     background: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
     transition: box-shadow 0.3s ease;
 }
 
 .item-card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
 }
 
 .qtd-input {
-    width: 100px;
+    width: 70px;
     text-align: center;
     font-weight: bold;
-    font-size: 1.1rem;
+    font-size: 0.9rem;
+    background-color: #ffffff;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.qtd-input:focus {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+    box-shadow: 0 0 0 0.2rem rgba(33, 150, 243, 0.25);
+}
+
+.qtd-input:not(:placeholder-shown) {
+    background-color: #e8f5e8;
+    border-color: #28a745;
 }
 
 .status-badge {
-    font-size: 0.9rem;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
 }
 
 .status-pendente {
@@ -83,64 +97,96 @@
 .resumo-card {
     background: #f8f9fa;
     border: 1px solid #dee2e6;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
 }
 
 .btn-processar {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     border: none;
     color: white;
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
     font-weight: bold;
-    border-radius: 10px;
+    border-radius: 8px;
     transition: transform 0.2s ease;
 }
 
-.btn-processar:hover {
+.btn-processar:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
 }
 
+.btn-processar:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Modal de Progresso */
+#modalProgresso .progress {
+    border-radius: 15px;
+}
+
+#modalProgresso .log-container {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
+#modalProgresso .log-container div {
+    margin-bottom: 0.5rem;
+    padding: 0.25rem;
+}
+
+#modalProgresso .log-container .success {
+    color: #28a745;
+}
+
+#modalProgresso .log-container .error {
+    color: #dc3545;
+}
+
+#modalProgresso .log-container .info {
+    color: #17a2b8;
+}
+
 .alta-demanda-icon {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     margin-right: 0.5rem;
 }
 
 .codigo-badge {
     background: #e3f2fd;
     color: #1976d2;
-    padding: 0.3rem 0.8rem;
-    border-radius: 15px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .quantidade-badge {
     background: #e8f5e8;
     color: #2e7d32;
-    padding: 0.3rem 0.8rem;
-    border-radius: 15px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .estoque-badge {
     background: #fff3e0;
     color: #f57c00;
-    padding: 0.3rem 0.8rem;
-    border-radius: 15px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .saldo-badge {
-    padding: 0.3rem 0.8rem;
-    border-radius: 15px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .saldo-badge.success {
@@ -161,18 +207,225 @@
 .separado-badge {
     background: #d1ecf1;
     color: #0c5460;
-    padding: 0.3rem 0.8rem;
-    border-radius: 15px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .quantity-card {
     background: #f8f9fa;
     border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.4rem;
+    margin-bottom: 0.3rem;
+    text-align: center;
+}
+
+.quantity-card small {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Layout melhorado para aproveitar espaço horizontal */
+.item-header-row {
+    margin-bottom: 1rem;
+}
+
+.item-info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.item-quantities-section {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.item-input-section {
+    grid-column: span 1;
+}
+
+.checkbox-section {
+    grid-column: span 1;
+}
+
+.item-bottom-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.8rem;
+}
+
+/* Responsividade melhorada */
+@media (max-width: 1200px) {
+    .item-quantities-section {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .item-quantities-section {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .item-quantities-section {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .item-bottom-section {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 576px) {
+    .item-quantities-section {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+    
+    .action-checkboxes {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+
+/* Checkboxes de ação */
+.action-checkboxes {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 0;
+}
+
+.checkbox-excluir {
+    color: #dc3545;
+}
+
+.checkbox-falta {
+    color: #f59e0b;
+}
+
+.checkbox-group input[type="checkbox"]:checked + label.checkbox-excluir {
+    color: #dc3545;
+    font-weight: 700;
+    text-shadow: 0 0 3px rgba(220, 53, 69, 0.3);
+}
+
+.checkbox-group input[type="checkbox"]:checked + label.checkbox-falta {
+    color: #f59e0b;
+    font-weight: 700;
+    text-shadow: 0 0 3px rgba(245, 158, 11, 0.3);
+}
+
+/* Melhorias visuais */
+.checkbox-group input[type="checkbox"] {
+    accent-color: #dc3545;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.checkbox-group input[type="checkbox"]:hover {
+    transform: scale(1.1);
+}
+
+.checkbox-group label {
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.checkbox-group label:hover {
+    opacity: 0.8;
+}
+
+/* Layout inline para checkboxes */
+.quantity-card-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.checkbox-group-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
     border-radius: 8px;
-    padding: 0.5rem;
-    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+    background-color: rgba(0, 0, 0, 0.02);
+    border: 1px solid transparent;
+}
+
+.checkbox-group-inline:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.checkbox-group-inline:has(input:checked) {
+    background-color: rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.checkbox-group-inline input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.checkbox-group-inline label {
+    margin: 0;
+    padding: 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+/* Observação obrigatória */
+.observacao-obrigatoria {
+    border: 2px solid #dc3545 !important;
+    background-color: #fff5f5 !important;
+}
+
+.observacao-obrigatoria:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
 }
 </style>
 {% endblock %}
@@ -264,108 +517,133 @@
                         {% for item in itens %}
                         <div class="item-card">
                             <!-- Cabeçalho do Item -->
-                            <div class="row mb-3">
-                                <div class="col-md-8">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <span class="badge bg-primary me-2">Item {{ loop.index }}</span>
-                                        <span class="codigo-badge me-2">{{ item.codigo }}</span>
-                                        <span class="badge bg-secondary me-2">{{ item.unidade or 'UN' }}</span>
-                                        <span class="badge bg-warning">{{ item.status_item }}</span>
-                                    </div>
-                                    <h6 class="mb-1">{{ item.descricao }}</h6>
-                                    <small class="text-muted">
-                                        <i class="fas fa-user me-1"></i>{{ item.solicitante }} | 
-                                        <i class="fas fa-calendar me-1"></i>{{ item.data }}
-                                    </small>
+                            <div class="item-header-row">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-primary me-2">Item {{ loop.index }}</span>
+                                    <span class="codigo-badge me-2">{{ item.codigo }}</span>
+                                    <span class="badge bg-secondary me-2">{{ item.unidade or 'UN' }}</span>
+                                    <span class="badge bg-warning">{{ item.status_item }}</span>
+                                    {% if item.alta_demanda %}
+                                    <span class="badge bg-danger ms-2">
+                                        <i class="fas fa-fire me-1"></i>Alta Demanda
+                                    </span>
+                                    {% endif %}
                                 </div>
+                                <h6 class="mb-1">{{ item.descricao }}</h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>{{ item.solicitante }} | 
+                                    <i class="fas fa-calendar me-1"></i>{{ item.data }}
+                                </small>
                             </div>
                             
-                            <!-- Quantidades -->
-                            <div class="row mb-3">
-                                <div class="col-md-2 text-center">
-                                    <div class="quantity-card">
-                                        <small class="text-muted d-block">Solicitado</small>
+                            <!-- Quantidades em Grid -->
+                            <div class="item-quantities-section">
+                                <div class="quantity-card">
+                                    <small>Solicitado</small>
+                                    <div class="mt-1">
                                         <span class="quantidade-badge">{{ item.quantidade }}</span>
                                     </div>
                                 </div>
-                                <div class="col-md-2 text-center">
-                                    <div class="quantity-card">
-                                        <small class="text-muted d-block">Estoque</small>
+                                
+                                <div class="quantity-card">
+                                    <small>Estoque</small>
+                                    <div class="mt-1">
                                         <span class="estoque-badge">{{ item.saldo_estoque }}</span>
                                     </div>
                                 </div>
-                                <div class="col-md-2 text-center">
-                                    <div class="quantity-card">
-                                        <small class="text-muted d-block">Saldo</small>
+                                
+                                <div class="quantity-card">
+                                    <small>Saldo</small>
+                                    <div class="mt-1">
                                         <span class="saldo-badge {{ 'success' if item.saldo_atual > 0 else 'danger' if item.saldo_atual == 0 else 'secondary' }}">
                                             {{ item.saldo_atual }}
                                         </span>
                                     </div>
                                 </div>
-                                <div class="col-md-2 text-center">
-                                    <div class="quantity-card">
-                                        <small class="text-muted d-block">Já Separado</small>
+                                
+                                <div class="quantity-card">
+                                    <small>Já Separado</small>
+                                    <div class="mt-1">
                                         <span class="separado-badge">{{ item.qtd_separada_atual }}</span>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="quantity-card">
-                                        <small class="text-muted d-block">Qtd Separada</small>
-                                        <div class="input-group">
+                                
+                                <div class="quantity-card item-input-section">
+                                    <small>Qtd Separada</small>
+                                    <div class="mt-1">
+                                        <div class="input-group input-group-sm">
                                             <input type="number" 
                                                    class="form-control qtd-input {% if item.status_item == 'Tratado' %}disabled-input{% endif %}" 
                                                    name="qtd_separada_{{ item.id_solicitacao }}"
                                                    id="qtd_{{ item.id_solicitacao }}"
-                                                   value="0" 
+                                                   placeholder="0" 
                                                    min="0" 
                                                    max="{{ item.quantidade + item.qtd_separada_atual }}"
                                                    data-quantidade="{{ item.quantidade }}"
                                                    data-qtd-atual="{{ item.qtd_separada_atual }}"
                                                    data-status="{{ item.status_item }}"
+                                                   data-item-index="{{ loop.index }}"
                                                    {% if item.status_item == 'Tratado' %}disabled readonly{% endif %}
-                                                   onchange="calcularStatus('{{ item.id_solicitacao }}')">
+                                                   onchange="calcularStatus('{{ item.id_solicitacao }}')"
+                                                   onkeypress="handleEnterKey(event, {{ loop.index }}, {{ itens|length }})">
                                             <span class="input-group-text">unid</span>
                                         </div>
                                         {% if item.status_item == 'Tratado' %}
-                                        <small class="text-warning">⚠️ Item já processado</small>
+                                        <small class="text-warning d-block mt-1">⚠️ Item já processado</small>
                                         {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Card separado para checkboxes -->
+                                <div class="quantity-card checkbox-section">
+                                    <small>Ações</small>
+                                    <div class="d-flex flex-column gap-2 mt-1">
+                                        <div class="checkbox-group">
+                                            <input type="checkbox" 
+                                                   id="excluir_{{ item.id_solicitacao }}"
+                                                   name="excluir_{{ item.id_solicitacao }}"
+                                                   data-item-id="{{ item.id_solicitacao }}"
+                                                   onchange="toggleObservacaoObrigatoria('{{ item.id_solicitacao }}', 'excluir')">
+                                            <label for="excluir_{{ item.id_solicitacao }}" class="checkbox-excluir">
+                                                <i class="fas fa-times-circle me-1"></i>Excluir
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="checkbox-group">
+                                            <input type="checkbox" 
+                                                   id="falta_{{ item.id_solicitacao }}"
+                                                   name="falta_{{ item.id_solicitacao }}"
+                                                   data-item-id="{{ item.id_solicitacao }}"
+                                                   onchange="toggleObservacaoObrigatoria('{{ item.id_solicitacao }}', 'falta')">
+                                            <label for="falta_{{ item.id_solicitacao }}" class="checkbox-falta">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>Falta
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- Status e Observações -->
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <div class="d-flex align-items-center">
-                                        <span class="me-2">Status:</span>
-                                        <span class="status-badge {% if item.status_item == 'Tratado' %}status-tratado{% else %}status-pendente{% endif %}" id="status_{{ item.id_solicitacao }}">
-                                            {{ item.status_item }}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="input-group">
-                                        <span class="input-group-text">
-                                            <i class="fas fa-comment"></i>
-                                        </span>
-                                        <input type="text" 
-                                               class="form-control" 
-                                               name="observacoes_{{ item.id_solicitacao }}"
-                                               placeholder="Observações do item...">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Alta Demanda -->
-                            {% if item.alta_demanda %}
-                            <div class="row mt-2">
-                                <div class="col-12">
-                                    <span class="badge bg-danger">
-                                        <i class="fas fa-fire me-1"></i>Alta Demanda
+                            <div class="item-bottom-section">
+                                <div class="d-flex align-items-center">
+                                    <span class="me-2 fw-bold">Status:</span>
+                                    <span class="status-badge {% if item.status_item == 'Tratado' %}status-tratado{% else %}status-pendente{% endif %}" id="status_{{ item.id_solicitacao }}">
+                                        {{ item.status_item }}
                                     </span>
                                 </div>
+                                
+                                <div class="input-group" style="max-width: 300px;">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-comment"></i>
+                                    </span>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           name="observacoes_{{ item.id_solicitacao }}"
+                                           id="observacoes_{{ item.id_solicitacao }}"
+                                           placeholder="Observações do item..."
+                                           data-item-id="{{ item.id_solicitacao }}">
+                                </div>
                             </div>
-                            {% endif %}
                         </div>
                         {% endfor %}
                     </form>
@@ -403,9 +681,45 @@
     <!-- Botão de Processar -->
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <button type="button" class="btn btn-processar" onclick="processarRomaneio()">
+            <button type="button" class="btn btn-processar" onclick="processarRomaneio()" id="btnProcessar">
                 <i class="fas fa-check me-2"></i>Salvar e Processar
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Progresso -->
+<div class="modal fade" id="modalProgresso" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <div class="mb-4">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 4rem; height: 4rem;">
+                        <span class="visually-hidden">Processando...</span>
+                    </div>
+                    <h5 class="mb-3">Processando Romaneio</h5>
+                    <p class="text-muted" id="statusProcessamento">Iniciando processamento...</p>
+                </div>
+                
+                <!-- Barra de Progresso -->
+                <div class="mb-3">
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                             role="progressbar" 
+                             id="barraProgresso"
+                             style="width: 0%">
+                            <span id="percentualProgresso">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Log de Atividades -->
+                <div class="log-container bg-light p-3 rounded text-start" style="max-height: 200px; overflow-y: auto;">
+                    <small class="text-muted" id="logAtividades">
+                        <div>⏳ Preparando processamento...</div>
+                    </small>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -468,6 +782,143 @@ window.processarImpressao = function() {
     } else {
         console.error('❌ Função processarRomaneio não encontrada');
     }
+};
+
+// Função para navegação com Enter
+window.handleEnterKey = function(event, currentIndex, totalItems) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        
+        // Encontrar o próximo input disponível
+        const nextIndex = currentIndex + 1;
+        
+        if (nextIndex <= totalItems) {
+            // Procurar o próximo input que não esteja desabilitado
+            const nextInput = document.querySelector(`input[data-item-index="${nextIndex}"]:not([disabled])`);
+            
+            if (nextInput) {
+                nextInput.focus();
+                nextInput.select();
+                console.log(`🔄 Navegando para item ${nextIndex}`);
+            } else {
+                // Se não encontrar próximo input disponível, procurar o próximo após este
+                let foundNext = false;
+                for (let i = nextIndex + 1; i <= totalItems; i++) {
+                    const input = document.querySelector(`input[data-item-index="${i}"]:not([disabled])`);
+                    if (input) {
+                        input.focus();
+                        input.select();
+                        console.log(`🔄 Navegando para item ${i}`);
+                        foundNext = true;
+                        break;
+                    }
+                }
+                
+                if (!foundNext) {
+                    console.log('📝 Último item alcançado');
+                    // Opcional: mostrar mensagem ou focar no botão de processar
+                    const processarBtn = document.querySelector('.btn-processar');
+                    if (processarBtn) {
+                        processarBtn.focus();
+                    }
+                }
+            }
+        } else {
+            console.log('📝 Último item alcançado');
+            // Focar no botão de processar
+            const processarBtn = document.querySelector('.btn-processar');
+            if (processarBtn) {
+                processarBtn.focus();
+            }
+        }
+    }
+};
+
+// Função para gerenciar observação obrigatória e garantir exclusividade
+window.toggleObservacaoObrigatoria = function(itemId, checkboxType) {
+    const excluirCheckbox = document.getElementById(`excluir_${itemId}`);
+    const faltaCheckbox = document.getElementById(`falta_${itemId}`);
+    const observacaoInput = document.getElementById(`observacoes_${itemId}`);
+    
+    // EXCLUSIVIDADE: Desmarcar o outro checkbox quando um é marcado
+    if (checkboxType === 'excluir' && excluirCheckbox.checked) {
+        faltaCheckbox.checked = false;
+        console.log(`🔄 "Excluir" marcado - Desmarcando "Falta"`);
+    } else if (checkboxType === 'falta' && faltaCheckbox.checked) {
+        excluirCheckbox.checked = false;
+        console.log(`🔄 "Falta" marcado - Desmarcando "Excluir"`);
+    }
+    
+    // Se "Excluir" estiver marcado, observação é obrigatória
+    if (excluirCheckbox.checked) {
+        observacaoInput.classList.add('observacao-obrigatoria');
+        observacaoInput.placeholder = 'Observação obrigatória para exclusão...';
+        observacaoInput.required = true;
+    } else {
+        observacaoInput.classList.remove('observacao-obrigatoria');
+        observacaoInput.required = false;
+        
+        // Se "Falta" estiver marcado, sugerir observação
+        if (faltaCheckbox.checked) {
+            observacaoInput.placeholder = 'Motivo da falta (opcional)...';
+        } else {
+            observacaoInput.placeholder = 'Observações do item...';
+        }
+    }
+    
+    console.log(`🔄 Checkbox alterado para item ${itemId} - Excluir: ${excluirCheckbox.checked}, Falta: ${faltaCheckbox.checked}`);
+};
+
+// Função para validar antes do processamento
+window.validarCheckboxes = function() {
+    const excluirItems = [];
+    const faltaItems = [];
+    const erros = [];
+    
+    // Coletar todos os itens marcados para excluir
+    document.querySelectorAll('input[name^="excluir_"]:checked').forEach(checkbox => {
+        const itemId = checkbox.dataset.itemId;
+        const observacao = document.getElementById(`observacoes_${itemId}`).value.trim();
+        const qtdSeparada = parseInt(document.getElementById(`qtd_${itemId}`).value) || 0;
+        
+        if (!observacao) {
+            erros.push(`Item ${itemId}: Observação obrigatória para exclusão`);
+        } else {
+            excluirItems.push({
+                id: itemId,
+                observacao: observacao,
+                qtd_separada: qtdSeparada
+            });
+        }
+    });
+    
+    // Coletar todos os itens marcados para falta
+    document.querySelectorAll('input[name^="falta_"]:checked').forEach(checkbox => {
+        const itemId = checkbox.dataset.itemId;
+        const observacao = document.getElementById(`observacoes_${itemId}`).value.trim();
+        const qtdSeparada = parseInt(document.getElementById(`qtd_${itemId}`).value) || 0;
+        
+        faltaItems.push({
+            id: itemId,
+            observacao: observacao || 'Item em falta',
+            qtd_separada: qtdSeparada
+        });
+    });
+    
+    if (erros.length > 0) {
+        alert('❌ Erros encontrados:\n\n' + erros.join('\n'));
+        return false;
+    }
+    
+    console.log('✅ Validação dos checkboxes:', {
+        excluir: excluirItems,
+        falta: faltaItems
+    });
+    
+    return {
+        excluir: excluirItems,
+        falta: faltaItems
+    };
 };
 
 console.log('✅ Funções conflitantes sobrescritas com versões seguras');
@@ -541,6 +992,12 @@ function atualizarResumo() {
 function processarRomaneio() {
     console.log('🔄 Iniciando coleta de dados...');
     
+    // Validar checkboxes primeiro
+    const checkboxData = validarCheckboxes();
+    if (checkboxData === false) {
+        return; // Parar se houver erros de validação
+    }
+    
     // Coletar dados do formulário
     const itens = [];
     const inputs = document.querySelectorAll('input[id^="qtd_"]');
@@ -553,22 +1010,33 @@ function processarRomaneio() {
         const observacoesInput = document.querySelector(`input[name="observacoes_${idSolicitacao}"]`);
         const observacoes = observacoesInput ? observacoesInput.value : '';
         
-        console.log(`   Item ${index + 1}: ID=${idSolicitacao}, Qtd=${qtdSeparada}, Obs=${observacoes}`);
+        // Verificar se o item está marcado para excluir ou falta
+        const excluirCheckbox = document.getElementById(`excluir_${idSolicitacao}`);
+        const faltaCheckbox = document.getElementById(`falta_${idSolicitacao}`);
         
-        if (qtdSeparada > 0) {
+        const isExcluir = excluirCheckbox ? excluirCheckbox.checked : false;
+        const isFalta = faltaCheckbox ? faltaCheckbox.checked : false;
+        
+        console.log(`   Item ${index + 1}: ID=${idSolicitacao}, Qtd=${qtdSeparada}, Obs=${observacoes}, Excluir=${isExcluir}, Falta=${isFalta}`);
+        
+        // Incluir item sempre (mesmo com quantidade 0) OU se estiver marcado para excluir/falta
+        if (qtdSeparada >= 0 || isExcluir || isFalta) {
             itens.push({
                 id_solicitacao: idSolicitacao,
                 qtd_separada: qtdSeparada,
-                observacoes: observacoes
+                observacoes: observacoes,
+                excluir: isExcluir,
+                falta: isFalta
             });
         }
     });
     
-    console.log(`📦 Total de itens com quantidade > 0: ${itens.length}`);
+    console.log(`📦 Total de itens para processar: ${itens.length}`);
     console.log('📋 Itens coletados:', itens);
+    console.log('📋 Dados dos checkboxes:', checkboxData);
     
     if (itens.length === 0) {
-        alert('Por favor, preencha pelo menos uma quantidade separada.');
+        alert('⚠️ Nenhum item foi preenchido para processar!');
         return;
     }
     
@@ -576,15 +1044,77 @@ function processarRomaneio() {
     window.dadosProcessamento = {
         id_romaneio: '{{ romaneio.id_impressao }}',
         itens: itens,
-        observacoes_gerais: document.querySelector('textarea[name="observacoes_gerais"]').value
+        observacoes_gerais: document.querySelector('textarea[name="observacoes_gerais"]').value,
+        checkbox_data: checkboxData
     };
     
     console.log('📋 Dados armazenados:', window.dadosProcessamento);
     
     // Processar diretamente (sem modal por enquanto)
     if (confirm(`Confirma o processamento de ${itens.length} itens?`)) {
-        confirmarProcessamento();
+        iniciarProcessamento();
     }
+}
+
+function iniciarProcessamento() {
+    // Desabilitar todos os inputs e botões
+    desabilitarFormulario();
+    
+    // Mostrar modal de progresso
+    const modal = new bootstrap.Modal(document.getElementById('modalProgresso'));
+    modal.show();
+    
+    // Atualizar progresso
+    atualizarProgresso(0, 'Iniciando processamento...');
+    adicionarLog('⏳ Preparando processamento...', 'info');
+    
+    // Simular progresso inicial
+    setTimeout(() => {
+        atualizarProgresso(10, 'Validando dados...');
+        adicionarLog('✅ Dados validados com sucesso', 'success');
+        
+        setTimeout(() => {
+            atualizarProgresso(30, 'Enviando dados ao servidor...');
+            adicionarLog('📡 Enviando requisição ao servidor...', 'info');
+            
+            // Chamar processamento real
+            confirmarProcessamento();
+        }, 500);
+    }, 500);
+}
+
+function desabilitarFormulario() {
+    // Desabilitar inputs
+    document.querySelectorAll('input').forEach(input => {
+        input.disabled = true;
+    });
+    
+    // Desabilitar checkboxes
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.disabled = true;
+    });
+    
+    // Desabilitar botão
+    document.getElementById('btnProcessar').disabled = true;
+}
+
+function atualizarProgresso(percentual, status) {
+    const barraProgresso = document.getElementById('barraProgresso');
+    const percentualProgresso = document.getElementById('percentualProgresso');
+    const statusProcessamento = document.getElementById('statusProcessamento');
+    
+    barraProgresso.style.width = percentual + '%';
+    percentualProgresso.textContent = percentual + '%';
+    statusProcessamento.textContent = status;
+}
+
+function adicionarLog(mensagem, tipo = 'info') {
+    const logContainer = document.getElementById('logAtividades');
+    const div = document.createElement('div');
+    div.className = tipo;
+    div.textContent = mensagem;
+    logContainer.appendChild(div);
+    logContainer.scrollTop = logContainer.scrollHeight;
 }
 
 function confirmarProcessamento() {
@@ -593,11 +1123,9 @@ function confirmarProcessamento() {
     console.log('🔄 Iniciando processamento...');
     console.log('📋 Dados:', dados);
     
-    // Mostrar loading
-    const btn = document.querySelector('.btn-processar');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processando...';
-    btn.disabled = true;
+    // Atualizar progresso
+    atualizarProgresso(40, 'Processando dados no servidor...');
+    adicionarLog('🔄 Processando dados no servidor...', 'info');
     
     // Enviar dados
     console.log('📡 Enviando requisição para /salvar-processamento-romaneio');
@@ -613,25 +1141,61 @@ function confirmarProcessamento() {
     })
     .then(response => {
         console.log('📡 Resposta recebida:', response);
+        atualizarProgresso(70, 'Processando resposta...');
+        adicionarLog('✅ Resposta recebida do servidor', 'success');
         return response.json();
     })
     .then(data => {
         console.log('📊 Dados da resposta:', data);
         if (data.success) {
-            alert('Romaneio processado com sucesso!');
-            window.location.href = '/controle-impressoes';
+            atualizarProgresso(90, 'Finalizando processamento...');
+            adicionarLog('✅ Processamento concluído com sucesso!', 'success');
+            
+            setTimeout(() => {
+                atualizarProgresso(100, 'Processamento concluído!');
+                adicionarLog('🔄 Redirecionando...', 'info');
+                
+                setTimeout(() => {
+                    // Redirecionar para controle de impressões
+                    window.location.href = '/controle-impressoes';
+                }, 1000);
+            }, 500);
         } else {
-            alert('Erro ao processar romaneio: ' + data.message);
+            atualizarProgresso(0, 'Erro ao processar');
+            adicionarLog('❌ Erro: ' + data.message, 'error');
+            
+            setTimeout(() => {
+                alert('Erro ao processar romaneio: ' + data.message);
+                // Fechar modal e reabilitar formulário
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalProgresso'));
+                modal.hide();
+                reabilitarFormulario();
+            }, 1000);
         }
     })
     .catch(error => {
         console.error('❌ Erro na requisição:', error);
-        alert('Erro ao processar romaneio: ' + error.message);
-    })
-    .finally(() => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        atualizarProgresso(0, 'Erro ao processar');
+        adicionarLog('❌ Erro: ' + error.message, 'error');
+        
+        setTimeout(() => {
+            alert('Erro ao processar romaneio: ' + error.message);
+            // Fechar modal e reabilitar formulário
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalProgresso'));
+            modal.hide();
+            reabilitarFormulario();
+        }, 1000);
     });
+}
+
+function reabilitarFormulario() {
+    // Reabilitar inputs
+    document.querySelectorAll('input').forEach(input => {
+        input.disabled = false;
+    });
+    
+    // Reabilitar botão
+    document.getElementById('btnProcessar').disabled = false;
 }
 
 // Inicializar resumo

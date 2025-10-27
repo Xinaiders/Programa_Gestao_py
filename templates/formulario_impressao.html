@@ -282,7 +282,7 @@
                     </h1>
                     <p class="formulario-subtitle">
                         <i class="fas fa-clipboard-list me-2"></i>
-                        Romaneio de Separação
+                        {{ tipo_romaneio if tipo_romaneio else 'Romaneio de Separação' }}
                     </p>
                 </div>
                 <div class="text-end">
@@ -353,13 +353,13 @@
                             <span class="quantidade-cell">{{ solicitacao.get('media_mensal', 41) }}</span>
                         </td>
                         <td class="col-saldo-ficou">
-                            <span class="text-muted">_____</span>
+                            <span class="text-muted"></span>
                         </td>
                         <td class="col-qtd-pendente">
                             <span class="quantidade-cell quantidade-pendente">{{ solicitacao.quantidade }}</span>
                         </td>
                         <td class="col-qtd-separada">
-                            <span class="text-muted">_____</span>
+                            <span class="text-muted"></span>
                         </td>
                     </tr>
                     {% endfor %}
@@ -402,6 +402,26 @@
             const agora = new Date();
             const dataFormatada = agora.toLocaleDateString('pt-BR') + ', ' + agora.toLocaleTimeString('pt-BR');
             document.getElementById('dataAtual').textContent = dataFormatada;
+            
+            // Verificar se deve abrir impressão automaticamente
+            const origem = '{{ origem }}';
+            if (origem === 'falta') {
+                console.log('🖨️ Detecção: Romaneio de Faltas - Abrindo impressão automaticamente...');
+                // Aguardar um momento para o conteúdo carregar, depois abrir impressão
+                setTimeout(function() {
+                    console.log('🖨️ Abrindo diálogo de impressão automaticamente...');
+                    window.print();
+                }, 500);
+            }
+        });
+        
+        // Redirecionar após impressão cancelada ou concluída
+        window.addEventListener('afterprint', function() {
+            const origem = '{{ origem }}';
+            if (origem === 'falta') {
+                console.log('🔄 Voltando para página de Itens em Falta...');
+                window.location.href = '{{ url_for("solicitacoes_falta") }}';
+            }
         });
     </script>
 </body>

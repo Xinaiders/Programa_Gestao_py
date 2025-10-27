@@ -526,4 +526,317 @@ async function verificarItensEmImpressaoPendente() {
 // Inicializar efeitos visuais
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(addVisualEffects, 100);
+    initFiltros();
 });
+
+/**
+ * Sistema de Filtros para Solicitações
+ */
+function initFiltros() {
+    console.log('🔍 Inicializando sistema de filtros...');
+    
+    // Elementos dos filtros
+    const filtroData = document.getElementById('filtroData');
+    const filtroSolicitante = document.getElementById('filtroSolicitante');
+    const filtroCodigo = document.getElementById('filtroCodigo');
+    const filtroStatus = document.getElementById('filtroStatus');
+    const aplicarFiltros = document.getElementById('aplicarFiltros');
+    const limparFiltros = document.getElementById('limparFiltros');
+    const limparData = document.getElementById('limparData');
+    const limparSolicitante = document.getElementById('limparSolicitante');
+    const limparCodigo = document.getElementById('limparCodigo');
+    const limparStatus = document.getElementById('limparStatus');
+    
+    // Event listeners
+    if (aplicarFiltros) {
+        aplicarFiltros.addEventListener('click', aplicarFiltrosSolicitacoes);
+    }
+    
+    if (limparFiltros) {
+        limparFiltros.addEventListener('click', limparTodosFiltros);
+    }
+    
+    if (limparData) {
+        limparData.addEventListener('click', () => limparFiltroIndividual('data'));
+    }
+    
+    if (limparSolicitante) {
+        limparSolicitante.addEventListener('click', () => limparFiltroIndividual('solicitante'));
+    }
+    
+    if (limparCodigo) {
+        limparCodigo.addEventListener('click', () => limparFiltroIndividual('codigo'));
+    }
+    
+    if (limparStatus) {
+        limparStatus.addEventListener('click', () => limparFiltroIndividual('status'));
+    }
+    
+    // Filtro automático ao digitar (com debounce)
+    if (filtroSolicitante) {
+        filtroSolicitante.addEventListener('input', debounce(aplicarFiltrosSolicitacoes, 500));
+    }
+    
+    if (filtroCodigo) {
+        filtroCodigo.addEventListener('input', debounce(aplicarFiltrosSolicitacoes, 500));
+    }
+    
+    if (filtroData) {
+        filtroData.addEventListener('change', aplicarFiltrosSolicitacoes);
+    }
+    
+    if (filtroStatus) {
+        filtroStatus.addEventListener('change', aplicarFiltrosSolicitacoes);
+    }
+    
+    console.log('✅ Sistema de filtros inicializado!');
+}
+
+/**
+ * Aplicar filtros na tabela
+ */
+function aplicarFiltrosSolicitacoes() {
+    console.log('🔍 APLICANDO FILTROS...');
+    
+    const filtroData = document.getElementById('filtroData').value;
+    const filtroSolicitante = document.getElementById('filtroSolicitante').value.toLowerCase();
+    const filtroCodigo = document.getElementById('filtroCodigo').value.toLowerCase();
+    const filtroStatus = document.getElementById('filtroStatus').value;
+    
+    console.log(`📋 Filtros recebidos:`);
+    console.log(`   Data: "${filtroData}"`);
+    console.log(`   Solicitante: "${filtroSolicitante}"`);
+    console.log(`   Código: "${filtroCodigo}"`);
+    console.log(`   Status: "${filtroStatus}"`);
+    
+    const tabela = document.getElementById('solicitacoesTable');
+    const linhas = tabela.querySelectorAll('tbody tr');
+    
+    console.log(`📊 Total de linhas encontradas: ${linhas.length}`);
+    
+    let totalVisiveis = 0;
+    let filtrosAtivos = [];
+    
+    linhas.forEach(linha => {
+        let mostrar = true;
+        
+        // Filtro por data (coluna 2 - após checkbox) - COMPARAÇÃO DE DATA SEM HORA
+        if (filtroData) {
+            const dataCelula = linha.querySelector('td:nth-child(2)');
+            if (dataCelula) {
+                const textoData = dataCelula.textContent.trim();
+                console.log(`🔍 Comparando data: "${textoData}" com filtro: "${filtroData}"`);
+                
+                // Extrair apenas a data (sem hora) da célula da tabela
+                const dataSemHora = textoData.split(' ')[0]; // "27/08/2025 17:28" -> "27/08/2025"
+                const dataFormatada = formatarDataParaComparacao(dataSemHora);
+                const dataFiltro = formatarDataParaComparacao(filtroData);
+                
+                console.log(`📅 Data sem hora: "${dataSemHora}"`);
+                console.log(`📅 Data formatada: "${dataFormatada}" vs Filtro: "${dataFiltro}"`);
+                
+                if (dataFormatada !== dataFiltro) {
+                    mostrar = false;
+                    console.log(`❌ Data não confere - ocultando linha`);
+                } else {
+                    console.log(`✅ Data confere - mantendo linha`);
+                }
+            }
+        }
+        
+        // Filtro por solicitante (coluna 3)
+        if (mostrar && filtroSolicitante) {
+            const solicitanteCelula = linha.querySelector('td:nth-child(3)');
+            if (solicitanteCelula) {
+                const solicitante = solicitanteCelula.textContent.toLowerCase();
+                console.log(`🔍 Comparando solicitante: "${solicitante}" com filtro: "${filtroSolicitante}"`);
+                
+                if (!solicitante.includes(filtroSolicitante)) {
+                    mostrar = false;
+                    console.log(`❌ Solicitante não confere - ocultando linha`);
+                } else {
+                    console.log(`✅ Solicitante confere - mantendo linha`);
+                }
+            }
+        }
+        
+        // Filtro por código (coluna 4) - CORRESPONDÊNCIA EXATA
+        if (mostrar && filtroCodigo) {
+            const codigoCelula = linha.querySelector('td:nth-child(4)');
+            if (codigoCelula) {
+                const codigo = codigoCelula.textContent.trim().toLowerCase();
+                console.log(`🔍 Comparando código: "${codigo}" com filtro: "${filtroCodigo}"`);
+                
+                if (codigo !== filtroCodigo) {
+                    mostrar = false;
+                    console.log(`❌ Código não confere (exato) - ocultando linha`);
+                } else {
+                    console.log(`✅ Código confere (exato) - mantendo linha`);
+                }
+            }
+        }
+        
+        // Filtro por status (coluna 10) - Buscar no badge ou textContent
+        if (mostrar && filtroStatus) {
+            const statusCelula = linha.querySelector('td:nth-child(10)');
+            if (statusCelula) {
+                const badge = statusCelula.querySelector('.badge');
+                const status = badge ? badge.textContent.trim() : statusCelula.textContent.trim();
+                console.log(`🔍 Comparando status: "${status}" com filtro: "${filtroStatus}"`);
+                
+                if (status !== filtroStatus) {
+                    mostrar = false;
+                    console.log(`❌ Status não confere - ocultando linha`);
+                } else {
+                    console.log(`✅ Status confere - mantendo linha`);
+                }
+            }
+        }
+        
+        // Mostrar/ocultar linha
+        linha.style.display = mostrar ? '' : 'none';
+        
+        if (mostrar) {
+            totalVisiveis++;
+        }
+    });
+    
+    // Atualizar contador
+    atualizarContadorFiltros(totalVisiveis, linhas.length);
+    
+    // Mostrar status dos filtros
+    mostrarStatusFiltros(filtroData, filtroSolicitante, filtroCodigo, filtroStatus);
+    
+    console.log(`🔍 Filtros aplicados: ${totalVisiveis}/${linhas.length} registros visíveis`);
+}
+
+/**
+ * Limpar todos os filtros
+ */
+function limparTodosFiltros() {
+    document.getElementById('filtroData').value = '';
+    document.getElementById('filtroSolicitante').value = '';
+    document.getElementById('filtroCodigo').value = '';
+    document.getElementById('filtroStatus').value = '';
+    
+    // Mostrar todas as linhas
+    const tabela = document.getElementById('solicitacoesTable');
+    const linhas = tabela.querySelectorAll('tbody tr');
+    
+    linhas.forEach(linha => {
+        linha.style.display = '';
+    });
+    
+    // Atualizar contador
+    atualizarContadorFiltros(linhas.length, linhas.length);
+    
+    // Ocultar status dos filtros
+    document.getElementById('statusFiltros').style.display = 'none';
+    
+    console.log('🧹 Todos os filtros foram limpos');
+}
+
+/**
+ * Limpar filtro individual
+ */
+function limparFiltroIndividual(tipo) {
+    switch(tipo) {
+        case 'data':
+            document.getElementById('filtroData').value = '';
+            break;
+        case 'solicitante':
+            document.getElementById('filtroSolicitante').value = '';
+            break;
+        case 'codigo':
+            document.getElementById('filtroCodigo').value = '';
+            break;
+        case 'status':
+            document.getElementById('filtroStatus').value = '';
+            break;
+    }
+    
+    aplicarFiltrosSolicitacoes();
+}
+
+/**
+ * Atualizar contador de registros filtrados
+ */
+function atualizarContadorFiltros(visiveis, total) {
+    const subtitulo = document.querySelector('.page-subtitle');
+    if (subtitulo) {
+        if (visiveis === total) {
+            subtitulo.textContent = `${total} registros encontrados`;
+        } else {
+            subtitulo.textContent = `${visiveis} de ${total} registros encontrados`;
+        }
+    }
+}
+
+/**
+ * Mostrar status dos filtros ativos
+ */
+function mostrarStatusFiltros(data, solicitante, codigo, status) {
+    const statusDiv = document.getElementById('statusFiltros');
+    const textoStatus = document.getElementById('textoStatusFiltros');
+    
+    const filtrosAtivos = [];
+    
+    if (data) filtrosAtivos.push(`Data: ${data}`);
+    if (solicitante) filtrosAtivos.push(`Solicitante: "${solicitante}"`);
+    if (codigo) filtrosAtivos.push(`Código: "${codigo}"`);
+    if (status) filtrosAtivos.push(`Status: "${status}"`);
+    
+    if (filtrosAtivos.length > 0) {
+        textoStatus.textContent = `Filtros ativos: ${filtrosAtivos.join(', ')}`;
+        statusDiv.style.display = 'block';
+    } else {
+        statusDiv.style.display = 'none';
+    }
+}
+
+/**
+ * Formatar data para comparação
+ */
+function formatarDataParaComparacao(dataStr) {
+    console.log(`🔄 Formatando data: "${dataStr}"`);
+    
+    // Se já está no formato YYYY-MM-DD, retornar como está
+    if (dataStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        console.log(`✅ Data já no formato correto: ${dataStr}`);
+        return dataStr;
+    }
+    
+    // Converter formato DD/MM/YYYY para YYYY-MM-DD
+    if (dataStr.includes('/')) {
+        // Remover horário se existir (ex: "27/08/2025 17:28")
+        const dataSemHora = dataStr.split(' ')[0];
+        const partes = dataSemHora.split('/');
+        
+        if (partes.length === 3) {
+            const ano = partes[2];
+            const mes = partes[1].padStart(2, '0');
+            const dia = partes[0].padStart(2, '0');
+            const resultado = `${ano}-${mes}-${dia}`;
+            console.log(`✅ Data convertida: "${dataStr}" -> "${resultado}"`);
+            return resultado;
+        }
+    }
+    
+    console.log(`⚠️ Formato de data não reconhecido: "${dataStr}"`);
+    return dataStr;
+}
+
+/**
+ * Debounce para otimizar filtros em tempo real
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}

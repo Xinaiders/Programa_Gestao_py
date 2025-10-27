@@ -390,13 +390,13 @@ def gerar_pdf_browser_romaneio(romaneio_data, itens_data, is_reprint=False):
                             <span class="quantidade-cell">{item.get('media_mensal', 41)}</span>
                         </td>
                         <td class="col-saldo-ficou">
-                            <span class="text-muted">_____</span>
+                            <span class="text-muted"></span>
                         </td>
                         <td class="col-qtd-pendente">
                             <span class="quantidade-cell quantidade-pendente">{item.get('quantidade', 0)}</span>
                         </td>
                         <td class="col-qtd-separada">
-                            <span class="text-muted">_____</span>
+                            <span class="text-muted"></span>
                         </td>
                     </tr>
                     ''' for item in itens_data])}

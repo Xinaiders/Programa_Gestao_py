@@ -1,32 +1,20 @@
-runtime: python311
+runtime: python39
 
 env_variables:
-  FLASK_ENV: production
-  SECRET_KEY: "your-secret-key-change-in-production"
-  DATABASE_URL: "sqlite:///:memory:"
-  GCS_BUCKET_NAME: "romaneios-separacao"
+  SECRET_KEY: 'change-this-to-a-random-secret-key-in-production'
+  DATABASE_URL: 'sqlite:///estoque.db'
 
-# Configurações de recursos para PDF generation
-resources:
-  cpu: 1
-  memory_gb: 1
-  disk_size_gb: 10
+handlers:
+- url: /favicon\.ico
+  static_files: favicon.ico
+  upload: favicon\.ico
+  
+- url: /.*
+  script: auto
+
+login: required
 
 automatic_scaling:
   min_instances: 1
   max_instances: 5
-  target_cpu_utilization: 0.7
-  target_throughput_utilization: 0.6
-
-# Configurações de rede
-network:
-  session_affinity: true
-
-handlers:
-  - url: /.*
-    script: auto
-    secure: always
-
-# Configurações de segurança
-vpc_access_connector:
-  name: projects/PROJECT_ID/locations/REGION/connectors/CONNECTOR_NAME
+  target_cpu_utilization: 0.6
