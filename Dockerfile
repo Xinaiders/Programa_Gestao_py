@@ -1,39 +1,24 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+# Use a imagem base oficial do Python
+FROM python:3.9-slim
 
-# Set working directory
+# Definir diretório de trabalho
 WORKDIR /app
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV FLASK_APP=app.py
-ENV FLASK_ENV=production
-
-# Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        gcc \
-        libc6-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
+# Copiar arquivo de dependências
 COPY requirements.txt .
+
+# Instalar dependências
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copiar código da aplicação
 COPY . .
 
-# Create non-root user
-RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
-USER appuser
+# Criar diretório para logs
+RUN mkdir -p logs
 
-# Expose port
+# Expor porta (Cloud Run usa variável de ambiente PORT)
+ENV PORT=8080
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/ || exit 1
-
-# Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "app:app"]
+# Comando para iniciar a aplicação
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app
