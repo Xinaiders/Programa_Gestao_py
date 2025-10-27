@@ -210,23 +210,42 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separ
         
         # Se estiver no Google Cloud Run, salvar também no Cloud Storage
         is_gcp = os.environ.get('GAE_ENV') or os.environ.get('K_SERVICE')
+        print(f"🔍 DEBUG: is_gcp = {is_gcp}")
+        print(f"🔍 DEBUG: GAE_ENV = {os.environ.get('GAE_ENV')}")
+        print(f"🔍 DEBUG: K_SERVICE = {os.environ.get('K_SERVICE')}")
+        
         if is_gcp:
             try:
+                print("☁️ Detectado ambiente Cloud Run - tentando salvar no Cloud Storage")
                 # Ler o PDF gerado
                 if 'file_path' in pdf_result and os.path.exists(pdf_result['file_path']):
+                    print(f"📄 Lendo PDF do caminho: {pdf_result['file_path']}")
                     with open(pdf_result['file_path'], 'rb') as f:
                         pdf_content = f.read()
+                    
+                    print(f"📊 Tamanho do PDF: {len(pdf_content)} bytes")
                     
                     # Salvar no Cloud Storage
                     from salvar_pdf_gcs import salvar_pdf_gcs
                     bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+                    print(f"📦 Bucket: {bucket_name}")
+                    print(f"🆔 Romaneio ID: {romaneio_data.get('id_impressao')}")
+                    
                     gcs_path = salvar_pdf_gcs(pdf_content, romaneio_data.get('id_impressao'), bucket_name, is_reprint)
                     
                     if gcs_path:
                         print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
                         pdf_result['gcs_path'] = gcs_path
+                    else:
+                        print(f"❌ Falha ao salvar no Cloud Storage (retornou None)")
+                else:
+                    print(f"❌ PDF não encontrado no caminho: {pdf_result.get('file_path')}")
             except Exception as e:
                 print(f"⚠️ Erro ao salvar no Cloud Storage (continuando): {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("💻 Ambiente local detectado - PDF salvo apenas localmente")
         
         return pdf_result
         
