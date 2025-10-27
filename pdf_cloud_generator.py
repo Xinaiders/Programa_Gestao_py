@@ -209,10 +209,17 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separ
         pdf_result = gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino, is_reprint)
         
         # Se estiver no Google Cloud Run, salvar também no Cloud Storage
-        is_gcp = os.environ.get('GAE_ENV') or os.environ.get('K_SERVICE')
-        print(f"🔍 DEBUG: is_gcp = {is_gcp}")
-        print(f"🔍 DEBUG: GAE_ENV = {os.environ.get('GAE_ENV')}")
-        print(f"🔍 DEBUG: K_SERVICE = {os.environ.get('K_SERVICE')}")
+        # Verificar todas as variáveis possíveis
+        is_gcp = (os.environ.get('GAE_ENV') or 
+                 os.environ.get('K_SERVICE') or 
+                 os.environ.get('CLOUD_RUN_SERVICE'))
+        
+        print(f"🔍 DEBUG: Variáveis de ambiente detectadas:")
+        print(f"  - GAE_ENV: {os.environ.get('GAE_ENV')}")
+        print(f"  - K_SERVICE: {os.environ.get('K_SERVICE')}")
+        print(f"  - CLOUD_RUN_SERVICE: {os.environ.get('CLOUD_RUN_SERVICE')}")
+        print(f"  - PORT: {os.environ.get('PORT')}")
+        print(f"  - Resultado is_gcp: {is_gcp}")
         
         if is_gcp:
             try:
