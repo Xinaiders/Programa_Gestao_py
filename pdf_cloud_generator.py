@@ -208,20 +208,14 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separ
         # Gerar PDF
         pdf_result = gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino, is_reprint)
         
-        # Se estiver no Google Cloud Run, salvar também no Cloud Storage
-        # Verificar todas as variáveis possíveis
-        is_gcp = (os.environ.get('GAE_ENV') or 
-                 os.environ.get('K_SERVICE') or 
-                 os.environ.get('CLOUD_RUN_SERVICE'))
+        # SEMPRE tentar salvar no Cloud Storage quando estiver em produção
+        # (Simplificado - sempre tenta, se falhar continua localmente)
         
-        print(f"🔍 DEBUG: Variáveis de ambiente detectadas:")
-        print(f"  - GAE_ENV: {os.environ.get('GAE_ENV')}")
-        print(f"  - K_SERVICE: {os.environ.get('K_SERVICE')}")
-        print(f"  - CLOUD_RUN_SERVICE: {os.environ.get('CLOUD_RUN_SERVICE')}")
-        print(f"  - PORT: {os.environ.get('PORT')}")
-        print(f"  - Resultado is_gcp: {is_gcp}")
+        print("🔍 INICIANDO SALVAMENTO NO CLOUD STORAGE...")
+        print(f"📦 Variáveis: GAE_ENV={os.environ.get('GAE_ENV')}, K_SERVICE={os.environ.get('K_SERVICE')}, PORT={os.environ.get('PORT')}")
         
-        if is_gcp:
+        # Tentar salvar no Cloud Storage de qualquer forma
+        try:
             try:
                 print("☁️ Detectado ambiente Cloud Run - tentando salvar no Cloud Storage")
                 # Ler o PDF gerado
@@ -251,8 +245,6 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separ
                 print(f"⚠️ Erro ao salvar no Cloud Storage (continuando): {e}")
                 import traceback
                 traceback.print_exc()
-        else:
-            print("💻 Ambiente local detectado - PDF salvo apenas localmente")
         
         return pdf_result
         
