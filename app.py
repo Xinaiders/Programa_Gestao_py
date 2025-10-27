@@ -1380,8 +1380,34 @@ def get_google_sheets_connection():
         # Configurar credenciais
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         print("📋 Carregando credenciais...")
-        creds = Credentials.from_service_account_file('sistema-consulta-produtos-2c00b5872af4.json', scopes=scope)
-        print("✅ Credenciais carregadas")
+        
+        # Tentar várias formas de carregar credenciais
+        creds = None
+        
+        # Opção 1: Ler de variável de ambiente JSON (Cloud Run)
+        service_account_info = os.environ.get('GOOGLE_SERVICE_ACCOUNT_INFO')
+        if service_account_info:
+            import json
+            print("📋 Carregando credenciais da variável de ambiente...")
+            info = json.loads(service_account_info)
+            creds = Credentials.from_service_account_info(info, scopes=scope)
+            print("✅ Credenciais carregadas da variável de ambiente")
+        
+        # Opção 2: Ler de arquivo local (desenvolvimento)
+        if not creds:
+            credential_file = 'sistema-consulta-produtos-2c00b5872af4.json'
+            if os.path.exists(credential_file):
+                print(f"📋 Carregando credenciais do arquivo: {credential_file}")
+                creds = Credentials.from_service_account_file(credential_file, scopes=scope)
+                print("✅ Credenciais carregadas do arquivo")
+            else:
+                print(f"❌ Arquivo de credenciais não encontrado: {credential_file}")
+                print("❌ Também não encontrou GOOGLE_SERVICE_ACCOUNT_INFO na variável de ambiente")
+                return None
+        
+        if not creds:
+            print("❌ Não foi possível carregar credenciais")
+            return None
         
         print("🔐 Autorizando cliente...")
         client = gspread.authorize(creds)
@@ -1401,6 +1427,8 @@ def get_google_sheets_connection():
     except Exception as e:
         print(f"❌ Erro ao conectar com Google Sheets: {e}")
         print(f"❌ Tipo do erro: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def criar_aba_realizar_baixa():
