@@ -12,21 +12,47 @@ import io
 def get_gcs_client():
     """Cria cliente do Google Cloud Storage"""
     try:
-        # Tentar ler credenciais da variável de ambiente
+        creds = None
+        project_id = None
+        
+        # Opção 1: Ler de variável de ambiente (Cloud Run/Produção)
         service_account_info = os.environ.get('GOOGLE_SERVICE_ACCOUNT_INFO')
         if service_account_info:
+            print("📋 Carregando credenciais da variável de ambiente...")
             info = json.loads(service_account_info)
             creds = Credentials.from_service_account_info(info)
-            client = gcs.Client(credentials=creds, project=info['project_id'])
-            print("✅ Cliente GCS criado com credenciais da variável de ambiente")
+            project_id = info.get('project_id')
+            print("✅ Credenciais carregadas da variável de ambiente")
+        
+        # Opção 2: Ler de arquivo local (Desenvolvimento)
+        if not creds:
+            credential_file = 'gestaosolicitacao-fe66ad097590.json'
+            if os.path.exists(credential_file):
+                print(f"📋 Carregando credenciais do arquivo: {credential_file}")
+                with open(credential_file, 'r', encoding='utf-8') as f:
+                    info = json.load(f)
+                    creds = Credentials.from_service_account_info(info)
+                    project_id = info.get('project_id')
+                print("✅ Credenciais carregadas do arquivo")
+            else:
+                print(f"⚠️ Arquivo de credenciais não encontrado: {credential_file}")
+                print("⚠️ Tentando usar Application Default Credentials...")
+        
+        # Criar cliente
+        if creds and project_id:
+            client = gcs.Client(credentials=creds, project=project_id)
+            print(f"✅ Cliente GCS criado com credenciais (Projeto: {project_id})")
             return client
         else:
-            print("⚠️ GOOGLE_SERVICE_ACCOUNT_INFO não encontrada, usando credentials padrão")
-            # Tentar usar Application Default Credentials
+            # Fallback: Application Default Credentials
+            print("⚠️ Usando Application Default Credentials")
             client = gcs.Client()
             return client
+            
     except Exception as e:
         print(f"❌ Erro ao criar cliente GCS: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name='romaneios-separacao', is_reprint=False):
@@ -150,4 +176,5 @@ def verificar_pdf_existe_gcs(romaneio_id, bucket_name='romaneios-separacao'):
     except Exception as e:
         print(f"❌ Erro ao verificar PDF: {e}")
         return False
+
 

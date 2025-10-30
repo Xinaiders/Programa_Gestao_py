@@ -10,7 +10,7 @@ O sistema funciona localmente, mas no Cloud Run não consegue acessar o arquivo 
 Execute este comando para obter o JSON em formato de variável de ambiente:
 
 ```bash
-python -c "import json; data = open('sistema-consulta-produtos-2c00b5872af4.json').read(); print(data)"
+python -c "import json; data = open('gestaosolicitacao-fe66ad097590.json').read(); print(data)"
 ```
 
 **IMPORTANTE:** Copie TODO o conteúdo que aparecer no terminal.
@@ -47,11 +47,11 @@ A variável `GOOGLE_SERVICE_ACCOUNT_INFO` deve conter o JSON completo, por exemp
 ```json
 {
   "type": "service_account",
-  "project_id": "sistema-consulta-produtos",
-  "private_key_id": "572a382a8d50ca8f2833cde12bb935785e650af6",
+  "project_id": "gestaosolicitacao",
+  "private_key_id": "fe66ad097590122b8005ab60589d61f89d2d807f",
   "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-  "client_email": "gestaosolicitacao@sistema-consulta-produtos.iam.gserviceaccount.com",
-  "client_id": "105306737506940549191",
+  "client_email": "gestsolicitacao@gestaosolicitacao.iam.gserviceaccount.com",
+  "client_id": "103067137161032270679",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
   ...

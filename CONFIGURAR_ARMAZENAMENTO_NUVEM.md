@@ -11,7 +11,7 @@ No **Cloud Run** (produção):
 
 ### Passo 1: Criar Bucket no Cloud Storage
 
-1. Acesse: https://console.cloud.google.com/storage/browser?project=sistema-consulta-produtos
+1. Acesse: https://console.cloud.google.com/storage/browser?project=gestaosolicitacao
 
 2. Clique em **"CRIAR BUCKET"**
 
@@ -29,7 +29,7 @@ No **Cloud Run** (produção):
 3. Clique em **"GRANT ACCESS"**
 4. Em "New principals", cole:
    ```
-   gestaosolicitacao@sistema-consulta-produtos.iam.gserviceaccount.com
+   gestsolicitacao@gestaosolicitacao.iam.gserviceaccount.com
    ```
 5. Em "Select a role", escolha: **"Storage Object Creator"** e **"Storage Object Viewer"**
 6. Clique em **"SAVE"**
@@ -73,4 +73,5 @@ PDF salvo em: gs://romaneios-separacao/ROM-000001.pdf
 3. Adicionar variável `GCS_BUCKET_NAME` no Cloud Run
 4. Fazer novo deploy
 5. Testar!
+
 

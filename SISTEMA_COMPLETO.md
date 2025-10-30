@@ -5,9 +5,9 @@
 ### ✅ O que foi configurado:
 
 #### 1. **Google Sheets - Integração**
-- ✅ Arquivo de credenciais: `sistema-consulta-produtos-2c00b5872af4.json`
+- ✅ Arquivo de credenciais: `gestaosolicitacao-fe66ad097590.json`
 - ✅ Planilha compartilhada com service account
-- ✅ Email da service account: `gestaosolicitacao@sistema-consulta-produtos.iam.gserviceaccount.com`
+- ✅ Email da service account: `gestsolicitacao@gestaosolicitacao.iam.gserviceaccount.com`
 - ✅ Variável de ambiente: `GOOGLE_SERVICE_ACCOUNT_INFO` configurada no Cloud Run
 - ✅ Sistema lê dados em tempo real da planilha
 
@@ -178,4 +178,5 @@ https://programa-gestao-py-661879898685.us-central1.run.app
 - ✅ Escalável e confiável
 
 **Status: PRONTO PARA PRODUÇÃO! 🚀**
+
 

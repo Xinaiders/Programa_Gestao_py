@@ -11,7 +11,7 @@ https://docs.google.com/spreadsheets/d/1lh__GpPF_ZyCidLskYDf48aQEwv5Z8P2laelJN9a
 
 ### 2. Compartilhe com a Conta de Serviço
 1. Clique no botão "Compartilhar" (canto superior direito)
-2. Adicione o email da conta de serviço: `gestaosolicitacao@sistema-consulta-produtos.iam.gserviceaccount.com`
+2. Adicione o email da conta de serviço: `gestsolicitacao@gestaosolicitacao.iam.gserviceaccount.com`
 3. Defina a permissão como "Editor"
 4. Clique em "Enviar"
 
@@ -23,9 +23,9 @@ https://docs.google.com/spreadsheets/d/1lh__GpPF_ZyCidLskYDf48aQEwv5Z8P2laelJN9a
 Após configurar as permissões, o sistema deve funcionar normalmente.
 
 ## Informações da Conta de Serviço
-- **Email**: gestaosolicitacao@sistema-consulta-produtos.iam.gserviceaccount.com
-- **Projeto**: sistema-consulta-produtos
-- **Arquivo de Credenciais**: sistema-consulta-produtos-2c00b5872af4.json
+- **Email**: gestsolicitacao@gestaosolicitacao.iam.gserviceaccount.com
+- **Projeto**: gestaosolicitacao
+- **Arquivo de Credenciais**: gestaosolicitacao-fe66ad097590.json
 
 ## Status Atual
 - ✅ Sistema configurado para funcionar apenas online

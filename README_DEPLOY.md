@@ -110,7 +110,7 @@ gsutil mb gs://seu-bucket-credenciais
 # Upload do arquivo JSON (adicionar manualmente no Console)
 # Console: Storage > Browser > Upload > selecionar arquivo JSON
 # OU via CLI:
-# gsutil cp sistema-consulta-produtos-*.json gs://seu-bucket-credenciais/
+# gsutil cp gestaosolicitacao-fe66ad097590.json gs://seu-bucket-credenciais/
 ```
 
 ### 4.2. Configurar variáveis de ambiente

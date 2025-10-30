@@ -10,7 +10,7 @@ Programa_Gestao_py/
 ├── ⚙️ config.py                       # Configurações gerais
 ├── ⚙️ config_pdf.py                   # Configurações de PDF
 ├── ⚙️ cloud_config.py                 # Configurações Google Cloud
-├── 🔐 sistema-consulta-produtos-*.json # Credenciais Google Sheets
+├── 🔐 gestaosolicitacao-fe66ad097590.json # Credenciais Google Sheets
 ├── 📋 requirements.txt                # Dependências Python
 ├── 🐳 Dockerfile                     # Container Docker
 ├── ☁️ app.yaml                       # Configuração Google Cloud

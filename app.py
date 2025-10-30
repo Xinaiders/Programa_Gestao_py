@@ -693,6 +693,35 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
                 
                 resultado = pdf_function(html_content, romaneio_data, pasta_destino='Romaneios_Separacao', is_reprint=False)
                 
+                # SEMPRE tentar salvar no Cloud Storage também (mesmo em desenvolvimento)
+                # Isso garante que os PDFs sejam salvos na nuvem independente do ambiente
+                try:
+                    from salvar_pdf_gcs import salvar_pdf_gcs
+                    import os
+                    
+                    # Se o PDF foi gerado, tentar salvar no Cloud Storage
+                    if resultado.get('success'):
+                        # Se já tem gcs_path, já foi salvo
+                        if 'gcs_path' not in resultado or not resultado.get('gcs_path'):
+                            # Tentar ler o PDF do caminho local e salvar no Cloud Storage
+                            if 'file_path' in resultado and os.path.exists(resultado['file_path']):
+                                print("☁️ Tentando salvar PDF no Cloud Storage também...")
+                                with open(resultado['file_path'], 'rb') as f:
+                                    pdf_content = f.read()
+                                
+                                bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+                                gcs_path = salvar_pdf_gcs(pdf_content, romaneio_data.get('id_impressao'), bucket_name, is_reprint=False)
+                                
+                                if gcs_path:
+                                    print(f"✅ PDF também salvo no Cloud Storage: {gcs_path}")
+                                    resultado['gcs_path'] = gcs_path
+                                else:
+                                    print("⚠️ Falha ao salvar no Cloud Storage, mas PDF local foi salvo")
+                except Exception as e:
+                    print(f"⚠️ Erro ao tentar salvar no Cloud Storage (continuando): {e}")
+                    import traceback
+                    traceback.print_exc()
+                
                 if resultado['success']:
                     pdf_generation_status[id_impressao] = {
                         'status': 'concluido',
@@ -1395,7 +1424,7 @@ def get_google_sheets_connection():
         
         # Opção 2: Ler de arquivo local (desenvolvimento)
         if not creds:
-            credential_file = 'sistema-consulta-produtos-2c00b5872af4.json'
+            credential_file = 'gestaosolicitacao-fe66ad097590.json'
             if os.path.exists(credential_file):
                 print(f"📋 Carregando credenciais do arquivo: {credential_file}")
                 creds = Credentials.from_service_account_file(credential_file, scopes=scope)
