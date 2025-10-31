@@ -46,6 +46,15 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
             os.makedirs(pasta_destino, exist_ok=True)
             filepath = os.path.join(pasta_destino, filename)
         
+        # Validar filepath
+        if not filepath:
+            return {
+                'success': False,
+                'message': 'Erro: Não foi possível determinar caminho do arquivo'
+            }
+        
+        print(f"📄 Filepath determinado: {filepath}")
+        
         # Adicionar marca d'água de cópia se necessário (igual ao pdf_browser_generator)
         if is_reprint:
             # Modificar o título para incluir "CÓPIA"
@@ -74,7 +83,17 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
                 rodape_texto
             )
         
+        # Validar HTML content
+        if not html_content or not isinstance(html_content, str):
+            return {
+                'success': False,
+                'message': f'Erro: HTML content inválido (tipo: {type(html_content)})'
+            }
+        
+        print(f"📄 HTML content tamanho: {len(html_content)} caracteres")
+        
         # Tentar usar weasyprint (funciona no Cloud Run)
+        pdf_gerado = False
         try:
             from weasyprint import HTML
             print("📄 Convertendo HTML para PDF usando WeasyPrint (mantém layout original)...")
@@ -82,31 +101,53 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
             # Converter HTML para PDF
             HTML(string=html_content).write_pdf(filepath)
             
-            print(f"✅ PDF gerado com layout original: {filepath}")
+            # Verificar se o arquivo foi realmente criado
+            if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                file_size = os.path.getsize(filepath)
+                print(f"✅ PDF gerado com layout original: {filepath} ({file_size} bytes)")
+                pdf_gerado = True
+            else:
+                print(f"⚠️ Arquivo PDF não foi criado ou está vazio: {filepath}")
             
-        except ImportError:
+        except ImportError as ie:
             # Se weasyprint não estiver disponível, usar ReportLab como fallback
-            print("⚠️ WeasyPrint não disponível, usando ReportLab (layout pode diferir)...")
-            from reportlab.lib.pagesizes import A4, landscape
-            from reportlab.lib.styles import getSampleStyleSheet
-            from reportlab.platypus import SimpleDocTemplate
-            from reportlab.platypus import Paragraph, Spacer
-            
-            doc = SimpleDocTemplate(filepath, pagesize=landscape(A4))
-            story = []
-            styles = getSampleStyleSheet()
-            story.append(Paragraph("PDF gerado com layout alternativo (WeasyPrint não disponível)", styles['Normal']))
-            story.append(Spacer(1, 20))
-            story.append(Paragraph("Use weasyprint para manter layout original do HTML", styles['Normal']))
-            doc.build(story)
+            print(f"⚠️ WeasyPrint não disponível ({ie}), usando ReportLab como fallback...")
+            try:
+                from reportlab.lib.pagesizes import A4, landscape
+                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.platypus import SimpleDocTemplate
+                from reportlab.platypus import Paragraph, Spacer
+                
+                doc = SimpleDocTemplate(filepath, pagesize=landscape(A4))
+                story = []
+                styles = getSampleStyleSheet()
+                story.append(Paragraph("PDF gerado com layout alternativo (WeasyPrint não disponível)", styles['Normal']))
+                story.append(Spacer(1, 20))
+                story.append(Paragraph("Use weasyprint para manter layout original do HTML", styles['Normal']))
+                doc.build(story)
+                
+                if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                    pdf_gerado = True
+                    print(f"✅ PDF gerado com ReportLab: {filepath}")
+            except Exception as rle:
+                print(f"❌ ERRO ao gerar PDF com ReportLab: {rle}")
+                import traceback
+                traceback.print_exc()
             
         except Exception as e:
-            print(f"❌ Erro ao gerar PDF: {e}")
+            print(f"❌ Erro ao gerar PDF com WeasyPrint: {e}")
             import traceback
             traceback.print_exc()
             return {
                 'success': False,
                 'message': f'Erro ao gerar PDF: {str(e)}'
+            }
+        
+        # Verificar se o PDF foi gerado
+        if not pdf_gerado:
+            return {
+                'success': False,
+                'message': 'Erro: Não foi possível gerar o PDF (arquivo não foi criado ou está vazio)'
             }
         
         # SEMPRE tentar salvar no Cloud Storage
@@ -121,49 +162,87 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
         
         # Ler o PDF gerado e salvar no Cloud Storage
         try:
-            if os.path.exists(filepath):
-                print(f"📄 Lendo PDF do caminho temporário: {filepath}")
+            # Verificar se filepath não é None
+            if not filepath:
+                error_msg = 'ERRO CRÍTICO: filepath é None na hora de salvar no Cloud Storage'
+                print(f"❌ {error_msg}")
+                pdf_result['success'] = False
+                pdf_result['message'] = error_msg
+                return pdf_result
+            
+            # Verificar se o arquivo existe
+            if not os.path.exists(filepath):
+                error_msg = f'ERRO CRÍTICO: PDF não encontrado no caminho: {filepath}'
+                print(f"❌ {error_msg}")
+                pdf_result['success'] = False
+                pdf_result['message'] = error_msg
+                return pdf_result
+            
+            print(f"📄 Lendo PDF do caminho temporário: {filepath}")
+            
+            # Ler conteúdo do PDF
+            try:
                 with open(filepath, 'rb') as f:
                     pdf_content = f.read()
-                
-                # Verificar se é realmente um PDF
-                if pdf_content.startswith(b'%PDF'):
-                    print(f"📊 Tamanho do PDF: {len(pdf_content)} bytes")
-                    
-                    # Deletar arquivo temporário imediatamente após ler
-                    try:
-                        os.unlink(filepath)
-                        print(f"🗑️ Arquivo temporário removido: {filepath}")
-                    except:
-                        pass
-                    
-                    # Salvar no Cloud Storage
-                    from salvar_pdf_gcs import salvar_pdf_gcs
-                    bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
-                    print(f"📦 Bucket: {bucket_name}")
-                    print(f"🆔 Romaneio ID: {romaneio_id}")
-                    
-                    gcs_path = salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name, is_reprint)
-                    
-                    if gcs_path:
-                        print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
-                        pdf_result['gcs_path'] = gcs_path
-                        pdf_result['message'] = 'PDF salvo no Cloud Storage'
-                    else:
-                        print(f"❌ Falha ao salvar no Cloud Storage (retornou None)")
-                        pdf_result['success'] = False
-                        pdf_result['message'] = 'Erro ao salvar no Cloud Storage'
-                else:
-                    print(f"⚠️ Arquivo não é um PDF válido (começa com: {pdf_content[:20]})")
-                    pdf_result['success'] = False
-            else:
-                print(f"❌ PDF não encontrado no caminho: {filepath}")
+            except Exception as read_error:
+                error_msg = f'ERRO ao ler arquivo PDF: {read_error}'
+                print(f"❌ {error_msg}")
+                import traceback
+                traceback.print_exc()
                 pdf_result['success'] = False
+                pdf_result['message'] = error_msg
+                return pdf_result
+            
+            # Validar conteúdo do PDF
+            if not pdf_content or len(pdf_content) == 0:
+                error_msg = 'ERRO: Arquivo PDF está vazio'
+                print(f"❌ {error_msg}")
+                pdf_result['success'] = False
+                pdf_result['message'] = error_msg
+                return pdf_result
+                
+            if not pdf_content.startswith(b'%PDF'):
+                error_msg = f'Arquivo não é um PDF válido (começa com: {pdf_content[:20]})'
+                print(f"⚠️ {error_msg}")
+                pdf_result['success'] = False
+                pdf_result['message'] = error_msg
+                return pdf_result
+            
+            print(f"📊 Tamanho do PDF: {len(pdf_content)} bytes")
+            
+            # Deletar arquivo temporário imediatamente após ler
+            try:
+                os.unlink(filepath)
+                print(f"🗑️ Arquivo temporário removido: {filepath}")
+            except Exception as del_error:
+                print(f"⚠️ Aviso: Não foi possível deletar arquivo temporário: {del_error}")
+            
+            # Salvar no Cloud Storage
+            from salvar_pdf_gcs import salvar_pdf_gcs
+            bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+            print(f"📦 Bucket: {bucket_name}")
+            print(f"🆔 Romaneio ID: {romaneio_id}")
+            print(f"📤 Chamando salvar_pdf_gcs com {len(pdf_content)} bytes...")
+            
+            gcs_path = salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name, is_reprint)
+            
+            if gcs_path:
+                print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
+                pdf_result['gcs_path'] = gcs_path
+                pdf_result['message'] = 'PDF salvo no Cloud Storage'
+            else:
+                error_msg = 'Falha ao salvar no Cloud Storage (retornou None)'
+                print(f"❌ {error_msg}")
+                pdf_result['success'] = False
+                pdf_result['message'] = error_msg
                 
         except Exception as e:
-            print(f"⚠️ Erro ao salvar no Cloud Storage (continuando): {e}")
+            error_msg = f'ERRO CRÍTICO ao salvar no Cloud Storage: {e}'
+            print(f"❌ {error_msg}")
             import traceback
             traceback.print_exc()
+            pdf_result['success'] = False
+            pdf_result['message'] = error_msg
         
         return pdf_result
         
