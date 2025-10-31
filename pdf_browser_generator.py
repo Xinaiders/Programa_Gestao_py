@@ -596,12 +596,21 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
             
             # Se não conseguiu gerar automaticamente, salvar HTML para impressão manual
             print("⚠️ Não foi possível gerar PDF automaticamente, salvando HTML...")
-            html_final_path = os.path.join(pasta_destino, f"{romaneio_id}.html")
+            
+            # Se pasta_destino for None, usar arquivo temporário
+            if pasta_destino is None:
+                temp_dir = tempfile.gettempdir()
+                html_final_path = os.path.join(temp_dir, f"{romaneio_id}.html")
+            else:
+                html_final_path = os.path.join(pasta_destino, f"{romaneio_id}.html")
+            
             with open(html_final_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
             
-            # Abrir no navegador
-            abrir_pdf_no_navegador(html_final_path)
+            # Abrir no navegador (apenas se não estiver no Cloud Run)
+            if not os.environ.get('K_SERVICE'):
+                abrir_pdf_no_navegador(html_final_path)
+            
             return {'success': True, 'message': 'HTML salvo para impressão manual', 'file_path': html_final_path}
             
         finally:

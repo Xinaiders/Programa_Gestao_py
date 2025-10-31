@@ -628,14 +628,19 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
         import os
         import threading
         
-        if os.getenv('GAE_APPLICATION'):
-            # Google Cloud - usar ReportLab
+        # Detectar se está no Cloud Run (K_SERVICE) ou App Engine (GAE_APPLICATION)
+        is_cloud = os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')
+        
+        if is_cloud:
+            # Google Cloud (Cloud Run ou App Engine) - usar ReportLab
             from pdf_cloud_generator import salvar_pdf_cloud
             pdf_function = salvar_pdf_cloud
+            print(f"☁️ Ambiente Cloud detectado ({os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')}) - usando ReportLab")
         else:
             # Desenvolvimento local - usar Chrome headless
             from pdf_browser_generator import salvar_pdf_direto_html
             pdf_function = salvar_pdf_direto_html
+            print("💻 Ambiente local detectado - usando Chrome headless")
         
         # Preparar dados do romaneio
         romaneio_data = {
@@ -692,7 +697,11 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
                 pdf_generation_status[id_impressao]['progresso'] = 25
                 
                 # Gerar PDF e salvar APENAS no Cloud Storage (NUNCA local)
-                resultado = pdf_function(html_content, romaneio_data, pasta_destino=None, is_reprint=False)
+                # Passar itens_data se for função do Cloud (ReportLab)
+                if is_cloud:
+                    resultado = pdf_function(html_content, romaneio_data, pasta_destino=None, is_reprint=False, itens_data=itens_data)
+                else:
+                    resultado = pdf_function(html_content, romaneio_data, pasta_destino=None, is_reprint=False)
                 
                 # SEMPRE salvar APENAS no Cloud Storage (sem salvar local)
                 try:
@@ -4282,14 +4291,19 @@ def reimprimir_romaneio(id_impressao):
         
         # Gerar PDF com marca d'água de cópia usando o sistema apropriado
         import os
-        if os.getenv('GAE_APPLICATION'):
-            # Google Cloud - usar ReportLab
+        # Detectar se está no Cloud Run (K_SERVICE) ou App Engine (GAE_APPLICATION)
+        is_cloud = os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')
+        
+        if is_cloud:
+            # Google Cloud (Cloud Run ou App Engine) - usar ReportLab
             from pdf_cloud_generator import salvar_pdf_cloud
             resultado = salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=True)
+            print(f"☁️ Ambiente Cloud detectado - usando ReportLab para reimpressão")
         else:
             # Desenvolvimento local - usar Chrome headless
             from pdf_browser_generator import salvar_pdf_direto_html
             resultado = salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_reprint=True)
+            print("💻 Ambiente local detectado - usando Chrome headless para reimpressão")
         
         if not resultado['success']:
             flash(f'Erro ao gerar cópia: {resultado["message"]}', 'error')

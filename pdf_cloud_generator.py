@@ -182,33 +182,68 @@ def gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino='Romaneios
             'message': f'Erro: {str(e)}'
         }
 
-def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=False):
+def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=False, itens_data=None):
     """
     Função de compatibilidade - converte HTML para dados e gera PDF
     Salva no Cloud Storage se estiver no GCP, senão salva localmente
+    
+    Args:
+        html_content: Conteúdo HTML (não usado se itens_data for fornecido)
+        romaneio_data: Dados do romaneio
+        pasta_destino: Pasta de destino (None para usar arquivo temporário)
+        is_reprint: Se é reimpressão
+        itens_data: Lista de itens (opcional - se None, tenta extrair do HTML)
     """
     try:
         import os
+        from bs4 import BeautifulSoup
         
-        # Extrair dados do HTML (simulação)
-        # Em produção, você pode usar BeautifulSoup para extrair dados do HTML
-        itens_data = []
-        
-        # Simular dados baseados no romaneio_data
-        for i in range(romaneio_data.get('total_itens', 1)):
-            item = {
-                'data': romaneio_data.get('data_impressao', ''),
-                'solicitante': f'Solicitante {i+1}',
-                'codigo': f'COD{i+1:03d}',
-                'descricao': f'Descrição do item {i+1}',
-                'alta_demanda': i % 3 == 0,
-                'locacao_matriz': '1 E5 E03/F03',
-                'saldo_estoque': 100 + i * 10,
-                'media_mensal': 50 + i * 5,
-                'qtd_pendente': 10 + i,
-                'qtd_separada': 0
-            }
-            itens_data.append(item)
+        # Se itens_data não foi fornecido, tentar extrair do HTML
+        if itens_data is None:
+            print("⚠️ itens_data não fornecido, tentando extrair do HTML...")
+            itens_data = []
+            
+            try:
+                # Tentar usar BeautifulSoup para extrair dados da tabela HTML
+                soup = BeautifulSoup(html_content, 'html.parser')
+                table_rows = soup.find_all('tr')
+                
+                for row in table_rows[1:]:  # Pular cabeçalho
+                    cells = row.find_all('td')
+                    if len(cells) >= 5:
+                        item = {
+                            'data': cells[0].get_text(strip=True),
+                            'solicitante': cells[1].get_text(strip=True),
+                            'codigo': cells[2].get_text(strip=True),
+                            'descricao': cells[3].get_text(strip=True),
+                            'alta_demanda': '⭐' in cells[4].get_text(),
+                            'locacao_matriz': cells[5].get_text(strip=True) if len(cells) > 5 else '',
+                            'saldo_estoque': int(cells[6].get_text(strip=True)) if len(cells) > 6 and cells[6].get_text(strip=True).isdigit() else 0,
+                            'media_mensal': int(cells[7].get_text(strip=True)) if len(cells) > 7 and cells[7].get_text(strip=True).isdigit() else 0,
+                            'qtd_pendente': int(cells[9].get_text(strip=True)) if len(cells) > 9 and cells[9].get_text(strip=True).isdigit() else 0,
+                            'qtd_separada': int(cells[10].get_text(strip=True)) if len(cells) > 10 and cells[10].get_text(strip=True).isdigit() else 0
+                        }
+                        itens_data.append(item)
+                        
+                print(f"✅ Extraídos {len(itens_data)} itens do HTML")
+            except Exception as e:
+                print(f"⚠️ Erro ao extrair dados do HTML: {e}")
+                print("⚠️ Usando dados simulados como fallback")
+                # Fallback: criar dados simulados
+                for i in range(romaneio_data.get('total_itens', 1)):
+                    item = {
+                        'data': romaneio_data.get('data_impressao', ''),
+                        'solicitante': f'Solicitante {i+1}',
+                        'codigo': f'COD{i+1:03d}',
+                        'descricao': f'Descrição do item {i+1}',
+                        'alta_demanda': False,
+                        'locacao_matriz': '1 E5 E03/F03',
+                        'saldo_estoque': 0,
+                        'media_mensal': 0,
+                        'qtd_pendente': 0,
+                        'qtd_separada': 0
+                    }
+                    itens_data.append(item)
         
         # Gerar PDF
         pdf_result = gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino, is_reprint)
