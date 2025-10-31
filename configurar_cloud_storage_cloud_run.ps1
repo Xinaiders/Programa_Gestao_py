@@ -92,33 +92,21 @@ try {
 # Passo 3: Atualizar variável GOOGLE_SERVICE_ACCOUNT_INFO
 Write-Host "`n☁️ Passo 3: Configurando GOOGLE_SERVICE_ACCOUNT_INFO..." -ForegroundColor $BLUE
 Write-Host "   (Isso pode levar alguns segundos...)" -ForegroundColor $YELLOW
+Write-Host "   ⚠️ IMPORTANTE: Usando --update-env-vars para não sobrescrever outras variáveis!" -ForegroundColor $YELLOW
 try {
-    # Usar --set-env-vars para definir (sobrescreve se já existir)
-    $envVar1 = "GOOGLE_SERVICE_ACCOUNT_INFO=$jsonOneLine"
-    gcloud run services update $SERVICE_NAME `
+    # Usar --update-env-vars para adicionar/atualizar SEM remover outras variáveis
+    # --set-env-vars SUBSTITUI todas as variáveis (problema que causava perda de outras configs)
+    $result1 = gcloud run services update $SERVICE_NAME `
         --region=$REGION `
-        --set-env-vars="$envVar1" `
-        2>&1 | Out-Null
+        --update-env-vars="GOOGLE_SERVICE_ACCOUNT_INFO=$jsonOneLine" `
+        2>&1
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Variável GOOGLE_SERVICE_ACCOUNT_INFO configurada com sucesso!" -ForegroundColor $GREEN
+        Write-Host "✅ Variável GOOGLE_SERVICE_ACCOUNT_INFO configurada/atualizada com sucesso!" -ForegroundColor $GREEN
     } else {
-        Write-Host "⚠️ Aviso ao atualizar GOOGLE_SERVICE_ACCOUNT_INFO (pode já estar configurada)" -ForegroundColor $YELLOW
-        Write-Host "   Tentando método alternativo..." -ForegroundColor $YELLOW
-        
-        # Método alternativo: usar --update-env-vars
-        $result1Alt = gcloud run services update $SERVICE_NAME `
-            --region=$REGION `
-            --update-env-vars="GOOGLE_SERVICE_ACCOUNT_INFO=$jsonOneLine" `
-            2>&1
-        
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "✅ Variável GOOGLE_SERVICE_ACCOUNT_INFO atualizada!" -ForegroundColor $GREEN
-        } else {
-            Write-Host "❌ ERRO ao configurar GOOGLE_SERVICE_ACCOUNT_INFO" -ForegroundColor $RED
-            Write-Host "   Erro: $result1Alt" -ForegroundColor $RED
-            exit 1
-        }
+        Write-Host "❌ ERRO ao configurar GOOGLE_SERVICE_ACCOUNT_INFO" -ForegroundColor $RED
+        Write-Host "   Erro: $result1" -ForegroundColor $RED
+        exit 1
     }
 } catch {
     Write-Host "❌ ERRO ao configurar GOOGLE_SERVICE_ACCOUNT_INFO: $_" -ForegroundColor $RED
