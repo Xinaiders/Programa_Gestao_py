@@ -632,10 +632,10 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
         is_cloud = os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')
         
         if is_cloud:
-            # Google Cloud (Cloud Run ou App Engine) - usar ReportLab
+            # Google Cloud (Cloud Run ou App Engine) - usar weasyprint para manter layout original
             from pdf_cloud_generator import salvar_pdf_cloud
             pdf_function = salvar_pdf_cloud
-            print(f"☁️ Ambiente Cloud detectado ({os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')}) - usando ReportLab")
+            print(f"☁️ Ambiente Cloud detectado ({os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')}) - usando WeasyPrint (layout original)")
         else:
             # Desenvolvimento local - usar Chrome headless
             from pdf_browser_generator import salvar_pdf_direto_html
@@ -697,11 +697,8 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
                 pdf_generation_status[id_impressao]['progresso'] = 25
                 
                 # Gerar PDF e salvar APENAS no Cloud Storage (NUNCA local)
-                # Passar itens_data se for função do Cloud (ReportLab)
-                if is_cloud:
-                    resultado = pdf_function(html_content, romaneio_data, pasta_destino=None, is_reprint=False, itens_data=itens_data)
-                else:
-                    resultado = pdf_function(html_content, romaneio_data, pasta_destino=None, is_reprint=False)
+                # Usa a mesma função para ambos (mantém layout original)
+                resultado = pdf_function(html_content, romaneio_data, pasta_destino=None, is_reprint=False)
                 
                 # SEMPRE salvar APENAS no Cloud Storage (sem salvar local)
                 try:
