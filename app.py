@@ -632,10 +632,10 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
         is_cloud = os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')
         
         if is_cloud:
-            # Google Cloud (Cloud Run ou App Engine) - usar weasyprint para manter layout original
+            # Google Cloud (Cloud Run ou App Engine) - usar xhtml2pdf para manter layout original
             from pdf_cloud_generator import salvar_pdf_cloud
             pdf_function = salvar_pdf_cloud
-            print(f"☁️ Ambiente Cloud detectado ({os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')}) - usando WeasyPrint (layout original)")
+            print(f"☁️ Ambiente Cloud detectado ({os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')}) - usando xhtml2pdf (layout original)")
         else:
             # Desenvolvimento local - usar Chrome headless
             from pdf_browser_generator import salvar_pdf_direto_html

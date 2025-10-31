@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Gerador de PDF compatível com Google Cloud Platform
-Mantém o layout original do HTML usando weasyprint
+Mantém o layout original do HTML usando xhtml2pdf (compatível com Cloud Run)
 """
 
 import os
@@ -17,7 +17,7 @@ def gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino='Romaneios
 def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=False, itens_data=None):
     """
     Converte HTML diretamente para PDF mantendo o layout original
-    Usa weasyprint no Cloud Run para manter layout idêntico ao HTML
+    Usa xhtml2pdf no Cloud Run para manter layout idêntico ao HTML (compatível sem dependências de sistema)
     
     Args:
         html_content: Conteúdo HTML renderizado
@@ -44,7 +44,7 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
         else:
             # Criar pasta se não existir
             os.makedirs(pasta_destino, exist_ok=True)
-            filepath = os.path.join(pasta_destino, filename)
+        filepath = os.path.join(pasta_destino, filename)
         
         # Validar filepath
         if not filepath:
@@ -92,26 +92,36 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
         
         print(f"📄 HTML content tamanho: {len(html_content)} caracteres")
         
-        # Tentar usar weasyprint (funciona no Cloud Run)
+        # Tentar usar xhtml2pdf (funciona no Cloud Run sem dependências de sistema)
         pdf_gerado = False
         try:
-            from weasyprint import HTML
-            print("📄 Convertendo HTML para PDF usando WeasyPrint (mantém layout original)...")
+            from xhtml2pdf import pisa
+            import io
+            print("📄 Convertendo HTML para PDF usando xhtml2pdf (mantém layout original)...")
             
-            # Converter HTML para PDF
-            HTML(string=html_content).write_pdf(filepath)
+            # Converter HTML para PDF usando xhtml2pdf
+            result_file = io.BytesIO()
+            pisa_status = pisa.CreatePDF(html_content, dest=result_file)
             
-            # Verificar se o arquivo foi realmente criado
-            if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
-                file_size = os.path.getsize(filepath)
-                print(f"✅ PDF gerado com layout original: {filepath} ({file_size} bytes)")
-                pdf_gerado = True
+            if not pisa_status.err:
+                # Salvar o PDF no arquivo
+                result_file.seek(0)
+                with open(filepath, 'wb') as f:
+                    f.write(result_file.getvalue())
+                
+                # Verificar se o arquivo foi realmente criado
+                if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                    file_size = os.path.getsize(filepath)
+                    print(f"✅ PDF gerado com layout original: {filepath} ({file_size} bytes)")
+                    pdf_gerado = True
+                else:
+                    print(f"⚠️ Arquivo PDF não foi criado ou está vazio: {filepath}")
             else:
-                print(f"⚠️ Arquivo PDF não foi criado ou está vazio: {filepath}")
+                print(f"⚠️ Erro ao gerar PDF com xhtml2pdf: {pisa_status.err}")
             
         except ImportError as ie:
-            # Se weasyprint não estiver disponível, usar ReportLab como fallback
-            print(f"⚠️ WeasyPrint não disponível ({ie}), usando ReportLab como fallback...")
+            # Se xhtml2pdf não estiver disponível, usar ReportLab como fallback
+            print(f"⚠️ xhtml2pdf não disponível ({ie}), usando ReportLab como fallback...")
             try:
                 from reportlab.lib.pagesizes import A4, landscape
                 from reportlab.lib.styles import getSampleStyleSheet
@@ -121,9 +131,9 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
                 doc = SimpleDocTemplate(filepath, pagesize=landscape(A4))
                 story = []
                 styles = getSampleStyleSheet()
-                story.append(Paragraph("PDF gerado com layout alternativo (WeasyPrint não disponível)", styles['Normal']))
+                story.append(Paragraph("PDF gerado com layout alternativo (xhtml2pdf não disponível)", styles['Normal']))
                 story.append(Spacer(1, 20))
-                story.append(Paragraph("Use weasyprint para manter layout original do HTML", styles['Normal']))
+                story.append(Paragraph("Use xhtml2pdf para manter layout original do HTML", styles['Normal']))
                 doc.build(story)
                 
                 if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
@@ -135,13 +145,32 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
                 traceback.print_exc()
             
         except Exception as e:
-            print(f"❌ Erro ao gerar PDF com WeasyPrint: {e}")
+            print(f"❌ Erro ao gerar PDF com xhtml2pdf: {e}")
             import traceback
             traceback.print_exc()
-            return {
-                'success': False,
-                'message': f'Erro ao gerar PDF: {str(e)}'
-            }
+            # Tentar fallback com ReportLab
+            try:
+                print("🔄 Tentando fallback com ReportLab...")
+                from reportlab.lib.pagesizes import A4, landscape
+                from reportlab.lib.styles import getSampleStyleSheet
+                from reportlab.platypus import SimpleDocTemplate
+                from reportlab.platypus import Paragraph, Spacer
+                
+                doc = SimpleDocTemplate(filepath, pagesize=landscape(A4))
+                story = []
+                styles = getSampleStyleSheet()
+                story.append(Paragraph("PDF gerado com ReportLab (fallback)", styles['Normal']))
+                doc.build(story)
+                
+                if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                    pdf_gerado = True
+                    print(f"✅ PDF gerado com ReportLab (fallback): {filepath}")
+            except Exception as fallback_error:
+                print(f"❌ ERRO no fallback: {fallback_error}")
+                return {
+                    'success': False,
+                    'message': f'Erro ao gerar PDF: {str(e)}'
+                }
         
         # Verificar se o PDF foi gerado
         if not pdf_gerado:
@@ -183,7 +212,7 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
             # Ler conteúdo do PDF
             try:
                 with open(filepath, 'rb') as f:
-                    pdf_content = f.read()
+                        pdf_content = f.read()
             except Exception as read_error:
                 error_msg = f'ERRO ao ler arquivo PDF: {read_error}'
                 print(f"❌ {error_msg}")
@@ -207,9 +236,9 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
                 pdf_result['success'] = False
                 pdf_result['message'] = error_msg
                 return pdf_result
-            
-            print(f"📊 Tamanho do PDF: {len(pdf_content)} bytes")
-            
+                    
+                    print(f"📊 Tamanho do PDF: {len(pdf_content)} bytes")
+                    
             # Deletar arquivo temporário imediatamente após ler
             try:
                 os.unlink(filepath)
@@ -217,30 +246,30 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
             except Exception as del_error:
                 print(f"⚠️ Aviso: Não foi possível deletar arquivo temporário: {del_error}")
             
-            # Salvar no Cloud Storage
-            from salvar_pdf_gcs import salvar_pdf_gcs
-            bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
-            print(f"📦 Bucket: {bucket_name}")
+                    # Salvar no Cloud Storage
+                    from salvar_pdf_gcs import salvar_pdf_gcs
+                    bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+                    print(f"📦 Bucket: {bucket_name}")
             print(f"🆔 Romaneio ID: {romaneio_id}")
             print(f"📤 Chamando salvar_pdf_gcs com {len(pdf_content)} bytes...")
-            
+                    
             gcs_path = salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name, is_reprint)
-            
-            if gcs_path:
-                print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
-                pdf_result['gcs_path'] = gcs_path
+                    
+                    if gcs_path:
+                        print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
+                        pdf_result['gcs_path'] = gcs_path
                 pdf_result['message'] = 'PDF salvo no Cloud Storage'
-            else:
+                    else:
                 error_msg = 'Falha ao salvar no Cloud Storage (retornou None)'
                 print(f"❌ {error_msg}")
                 pdf_result['success'] = False
                 pdf_result['message'] = error_msg
                 
-        except Exception as e:
+            except Exception as e:
             error_msg = f'ERRO CRÍTICO ao salvar no Cloud Storage: {e}'
             print(f"❌ {error_msg}")
-            import traceback
-            traceback.print_exc()
+                import traceback
+                traceback.print_exc()
             pdf_result['success'] = False
             pdf_result['message'] = error_msg
         
