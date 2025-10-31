@@ -1733,6 +1733,7 @@ def get_google_sheets_data():
         return None
 
 # Função para buscar dados da matriz diretamente do Google Sheets
+@cached_function(cache_duration=60, force_refresh_interval=30)  # Cache de 60s para matriz (muda menos)
 def get_matriz_data_from_sheets():
     """Busca dados da aba MATRIZ_IMPORTADA diretamente do Google Sheets"""
     try:
@@ -1750,7 +1751,6 @@ def get_matriz_data_from_sheets():
             return {}
         
         # Obter todos os valores da planilha
-        print("📥 Consultando dados da aba MATRIZ_IMPORTADA...")
         all_values = worksheet.get_all_values()
         
         if not all_values or len(all_values) < 2:
@@ -1781,8 +1781,6 @@ def get_matriz_data_from_sheets():
         if df.empty:
             print("❌ Nenhum dado válido encontrado na aba MATRIZ_IMPORTADA")
             return {}
-        
-        print(f"📊 Processando {len(df)} registros da aba MATRIZ_IMPORTADA...")
         
         # Criar dicionário com dados da matriz
         matriz_data = {}
@@ -2489,14 +2487,13 @@ def process_google_sheets_data(df, matriz_data=None):
     solicitacoes_list = []
     
     # Buscar dados da matriz do Google Sheets (opcional)
-    print("📊 Carregando dados da matriz...")
-    try:
-        matriz_data = get_matriz_data_from_sheets()
-        print(f"📊 Matriz carregada: {len(matriz_data)} itens")
-    except Exception as e:
-        print(f"⚠️ Erro ao carregar matriz: {e}")
-        print("📊 Continuando sem dados da matriz...")
-        matriz_data = {}
+    # Usar matriz_data passada como parâmetro ou buscar (com cache)
+    if matriz_data is None:
+        try:
+            matriz_data = get_matriz_data_from_sheets()
+        except Exception as e:
+            print(f"⚠️ Erro ao carregar matriz: {e}")
+            matriz_data = {}
     
     for index, row in df.iterrows():
         try:
@@ -2577,68 +2574,31 @@ def solicitacoes():
     status_filter = request.args.get('status', '')
     codigo_search = request.args.get('codigo', '')
     
-    print(f"DEBUG: status_filter recebido: '{status_filter}' (tipo: {type(status_filter)})")
-    print(f"DEBUG: codigo_search recebido: '{codigo_search}' (tipo: {type(codigo_search)})")
-    print(f"DEBUG: status_filter repr: {repr(status_filter)}")
-    print(f"DEBUG: codigo_search repr: {repr(codigo_search)}")
-    
-    # Consultar planilha em tempo real - APENAS ONLINE
+    # Consultar planilha em tempo real (com cache)
     df = get_google_sheets_data()
     
     if df is None or df.empty:
-        print("❌ Não foi possível obter dados da planilha, tentando novamente...")
-        # Tentar novamente com timeout maior
-        try:
-            import time
-            time.sleep(3)  # Aguardar 3 segundos
-            df = get_google_sheets_data()
-        except Exception as e:
-            print(f"❌ Segunda tentativa falhou: {e}")
-        
-        if df is None or df.empty:
-            print("❌ ERRO: Não foi possível conectar com a planilha do Google Sheets")
-            flash('❌ Erro: Não foi possível conectar com a planilha do Google Sheets. A conta de serviço precisa ter acesso à planilha. Verifique as permissões e tente novamente.', 'error')
-            return render_template('solicitacoes.html', 
-                                 solicitacoes=CompleteList([]), 
-                                 codigo_search=codigo_search,
-                                 contagens={'aberta': 0, 'pendente': 0, 'aprovada': 0, 'em_separacao': 0, 'entrega_parcial': 0, 'cancelada': 0, 'concluida': 0, 'total': 0})
-        else:
-            print("✅ Segunda tentativa bem-sucedida!")
-            # Processar dados da planilha
-            solicitacoes_list = process_google_sheets_data(df)
-    else:
-        print("✅ Dados da planilha obtidos com sucesso!")
-        # Processar dados da planilha
-        solicitacoes_list = process_google_sheets_data(df)
+        flash('❌ Erro: Não foi possível conectar com a planilha do Google Sheets. A conta de serviço precisa ter acesso à planilha. Verifique as permissões e tente novamente.', 'error')
+        return render_template('solicitacoes.html', 
+                             solicitacoes=CompleteList([]), 
+                             codigo_search=codigo_search,
+                             contagens={'aberta': 0, 'pendente': 0, 'aprovada': 0, 'em_separacao': 0, 'entrega_parcial': 0, 'cancelada': 0, 'concluida': 0, 'total': 0})
     
-    # Se ainda não temos dados, criar lista vazia
-    if 'solicitacoes_list' not in locals():
-        solicitacoes_list = []
+    # Processar dados da planilha
+    solicitacoes_list = process_google_sheets_data(df)
     
+    # Filtrar automaticamente as concluídas, faltas e finalizadas
+    solicitacoes_list = [s for s in solicitacoes_list if s.status not in ['Concluida', 'Falta', 'Finalizado']]
     
-    print(f"DEBUG: Total de registros processados: {len(solicitacoes_list)}")
-    
-    # Filtrar automaticamente as concluídas, faltas e finalizadas para deixar a interface mais limpa
-    solicitacoes_list = [s for s in solicitacoes_list if s.status != 'Concluida' and s.status != 'Falta' and s.status != 'Finalizado']
-    print(f"DEBUG: Registros após filtrar concluídas e faltas: {len(solicitacoes_list)}")
-    
-    # Aplicar busca por código se especificado
+    # Aplicar busca por código se especificado (antes de ordenar - mais eficiente)
     if codigo_search:
-        print(f"DEBUG: Aplicando busca por código: '{codigo_search}'")
         codigo_search_clean = codigo_search.strip()
         solicitacoes_list = [s for s in solicitacoes_list if codigo_search_clean in str(s.codigo)]
-        print(f"DEBUG: Total de registros após busca por código: {len(solicitacoes_list)}")
     
     # Ordenar por data crescente (mais antigo primeiro)
     solicitacoes_list.sort(key=lambda x: x.data, reverse=False)
     
-    # Debug: verificar status dos primeiros registros
-    if solicitacoes_list:
-        print(f"DEBUG: Primeiros 5 status encontrados:")
-        for i, sol in enumerate(solicitacoes_list[:5]):
-            print(f"  {i+1}. ID: {sol.id}, Status: '{sol.status}' (repr: {repr(sol.status)})")
-    
-    # Calcular contagens por status
+    # Calcular contagens por status (uma passada só)
     status_counts = {}
     for solicitacao in solicitacoes_list:
         status = solicitacao.status
@@ -2656,12 +2616,7 @@ def solicitacoes():
         'total': len(solicitacoes_list)
     }
     
-    print(f"DEBUG: Contagens por status: {contagens}")
-    
     solicitacoes = CompleteList(solicitacoes_list)
-    
-    print(f"DEBUG: Enviando para template - total: {solicitacoes.total}, items: {len(solicitacoes.items)}")
-    print(f"DEBUG: status_filter para template: '{status_filter}' (repr: {repr(status_filter)})")
     
     # Adicionar headers para evitar cache
     response = make_response(render_template('solicitacoes.html', 

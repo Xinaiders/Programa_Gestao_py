@@ -15,42 +15,86 @@ def get_gcs_client():
         creds = None
         project_id = None
         
+        # Debug: verificar ambiente
+        is_cloud_run = os.environ.get('K_SERVICE') is not None
+        print(f"🌐 Ambiente detectado: {'Cloud Run' if is_cloud_run else 'Local'}")
+        print(f"🔍 Variáveis de ambiente disponíveis:")
+        print(f"   - K_SERVICE: {os.environ.get('K_SERVICE', 'NÃO DEFINIDA')}")
+        print(f"   - GOOGLE_SERVICE_ACCOUNT_INFO: {'DEFINIDA' if os.environ.get('GOOGLE_SERVICE_ACCOUNT_INFO') else 'NÃO DEFINIDA'}")
+        print(f"   - GCS_BUCKET_NAME: {os.environ.get('GCS_BUCKET_NAME', 'NÃO DEFINIDA')}")
+        
         # Opção 1: Ler de variável de ambiente (Cloud Run/Produção)
         service_account_info = os.environ.get('GOOGLE_SERVICE_ACCOUNT_INFO')
         if service_account_info:
             print("📋 Carregando credenciais da variável de ambiente...")
-            info = json.loads(service_account_info)
-            creds = Credentials.from_service_account_info(info)
-            project_id = info.get('project_id')
-            print("✅ Credenciais carregadas da variável de ambiente")
+            try:
+                # Tentar fazer parse do JSON
+                info = json.loads(service_account_info)
+                creds = Credentials.from_service_account_info(info)
+                project_id = info.get('project_id')
+                print(f"✅ Credenciais carregadas da variável de ambiente (Projeto: {project_id})")
+            except json.JSONDecodeError as e:
+                print(f"❌ ERRO: JSON inválido na variável GOOGLE_SERVICE_ACCOUNT_INFO: {e}")
+                print(f"❌ Primeiros 100 caracteres: {service_account_info[:100]}")
+                return None
+            except Exception as e:
+                print(f"❌ ERRO ao processar credenciais da variável: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
         
         # Opção 2: Ler de arquivo local (Desenvolvimento)
         if not creds:
             credential_file = 'gestaosolicitacao-fe66ad097590.json'
             if os.path.exists(credential_file):
                 print(f"📋 Carregando credenciais do arquivo: {credential_file}")
-                with open(credential_file, 'r', encoding='utf-8') as f:
-                    info = json.load(f)
-                    creds = Credentials.from_service_account_info(info)
-                    project_id = info.get('project_id')
-                print("✅ Credenciais carregadas do arquivo")
+                try:
+                    with open(credential_file, 'r', encoding='utf-8') as f:
+                        info = json.load(f)
+                        creds = Credentials.from_service_account_info(info)
+                        project_id = info.get('project_id')
+                    print(f"✅ Credenciais carregadas do arquivo (Projeto: {project_id})")
+                except Exception as e:
+                    print(f"❌ ERRO ao ler arquivo de credenciais: {e}")
+                    return None
             else:
-                print(f"⚠️ Arquivo de credenciais não encontrado: {credential_file}")
-                print("⚠️ Tentando usar Application Default Credentials...")
+                if is_cloud_run:
+                    print(f"⚠️ ATENÇÃO: No Cloud Run e arquivo {credential_file} não encontrado")
+                    print(f"⚠️ Verifique se a variável GOOGLE_SERVICE_ACCOUNT_INFO está configurada!")
+                else:
+                    print(f"⚠️ Arquivo de credenciais não encontrado: {credential_file}")
+                    print("⚠️ Tentando usar Application Default Credentials...")
         
         # Criar cliente
         if creds and project_id:
-            client = gcs.Client(credentials=creds, project=project_id)
-            print(f"✅ Cliente GCS criado com credenciais (Projeto: {project_id})")
-            return client
+            try:
+                client = gcs.Client(credentials=creds, project=project_id)
+                print(f"✅ Cliente GCS criado com credenciais (Projeto: {project_id})")
+                return client
+            except Exception as e:
+                print(f"❌ ERRO ao criar cliente GCS com credenciais: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
         else:
-            # Fallback: Application Default Credentials
-            print("⚠️ Usando Application Default Credentials")
-            client = gcs.Client()
-            return client
+            # Fallback: Application Default Credentials (só funciona se a service account do Cloud Run tiver permissões)
+            if is_cloud_run:
+                print("⚠️ ATENÇÃO: Tentando usar Application Default Credentials no Cloud Run")
+                print("⚠️ Certifique-se que a service account do Cloud Run tem permissões no bucket!")
+            else:
+                print("⚠️ Usando Application Default Credentials")
+            try:
+                client = gcs.Client()
+                print("✅ Cliente GCS criado com Application Default Credentials")
+                return client
+            except Exception as e:
+                print(f"❌ ERRO ao criar cliente GCS com Application Default Credentials: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
             
     except Exception as e:
-        print(f"❌ Erro ao criar cliente GCS: {e}")
+        print(f"❌ ERRO CRÍTICO ao criar cliente GCS: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -69,12 +113,15 @@ def salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name='romaneios-separacao', 
         str: Caminho do arquivo no GCS (gs://bucket/file.pdf) ou None se erro
     """
     try:
-        print(f"☁️ Salvando PDF no Cloud Storage: {romaneio_id}")
+        print(f"☁️ === INÍCIO: Salvando PDF no Cloud Storage ===")
+        print(f"☁️ Romaneio ID: {romaneio_id}")
+        print(f"☁️ Bucket: {bucket_name}")
+        print(f"☁️ Tamanho do PDF: {len(pdf_content)} bytes")
         
         # Criar cliente
         client = get_gcs_client()
         if not client:
-            print("❌ Não foi possível criar cliente GCS")
+            print("❌ ERRO: Não foi possível criar cliente GCS")
             return None
         
         # Obter bucket
@@ -90,16 +137,22 @@ def salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name='romaneios-separacao', 
         blob = bucket.blob(filename)
         
         # Upload do arquivo
-        print(f"📤 Fazendo upload de {len(pdf_content)} bytes...")
-        blob.upload_from_string(pdf_content, content_type='application/pdf')
-        
-        gcs_path = f"gs://{bucket_name}/{filename}"
-        print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
-        
-        return gcs_path
+        print(f"📤 Fazendo upload de {len(pdf_content)} bytes para {filename}...")
+        try:
+            blob.upload_from_string(pdf_content, content_type='application/pdf')
+            gcs_path = f"gs://{bucket_name}/{filename}"
+            print(f"✅ === SUCESSO: PDF salvo no Cloud Storage ===")
+            print(f"✅ Caminho: {gcs_path}")
+            return gcs_path
+        except Exception as upload_error:
+            print(f"❌ ERRO durante upload: {upload_error}")
+            import traceback
+            traceback.print_exc()
+            return None
         
     except Exception as e:
-        print(f"❌ Erro ao salvar PDF no Cloud Storage: {e}")
+        print(f"❌ === ERRO CRÍTICO ao salvar PDF no Cloud Storage ===")
+        print(f"❌ Erro: {e}")
         import traceback
         traceback.print_exc()
         return None
