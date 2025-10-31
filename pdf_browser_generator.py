@@ -490,17 +490,15 @@ def abrir_pdf_no_navegador(filepath):
         print(f"❌ Erro ao abrir no navegador: {e}")
         return False
 
-def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino='Romaneios_Separacao', is_reprint=False):
+def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_reprint=False):
     """
     Salva PDF diretamente do HTML já renderizado (otimizado)
+    Gera em arquivo temporário se pasta_destino for None
     """
     try:
         import subprocess
         import shutil
         import tempfile
-        
-        # Criar pasta se não existir
-        os.makedirs(pasta_destino, exist_ok=True)
         
         # Nome do arquivo
         romaneio_id = romaneio_data.get('id_impressao', 'ROM-000001')
@@ -509,7 +507,14 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino='Romaneios
         else:
             filename = f"{romaneio_id}.pdf"
         
-        filepath = os.path.join(pasta_destino, filename)
+        # Se pasta_destino for None, usar arquivo temporário
+        if pasta_destino is None:
+            temp_dir = tempfile.gettempdir()
+            filepath = os.path.join(temp_dir, filename)
+        else:
+            # Criar pasta se não existir
+            os.makedirs(pasta_destino, exist_ok=True)
+            filepath = os.path.join(pasta_destino, filename)
         
         # Adicionar identificação de cópia se necessário
         if is_reprint:

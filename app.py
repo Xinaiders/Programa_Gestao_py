@@ -691,10 +691,10 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
                 # Simular progresso
                 pdf_generation_status[id_impressao]['progresso'] = 25
                 
-                resultado = pdf_function(html_content, romaneio_data, pasta_destino='Romaneios_Separacao', is_reprint=False)
+                # Gerar PDF e salvar APENAS no Cloud Storage (NUNCA local)
+                resultado = pdf_function(html_content, romaneio_data, pasta_destino=None, is_reprint=False)
                 
-                # SEMPRE tentar salvar no Cloud Storage também (mesmo em desenvolvimento)
-                # Isso garante que os PDFs sejam salvos na nuvem independente do ambiente
+                # SEMPRE salvar APENAS no Cloud Storage (sem salvar local)
                 try:
                     from salvar_pdf_gcs import salvar_pdf_gcs
                     import os
@@ -705,18 +705,52 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
                         if 'gcs_path' not in resultado or not resultado.get('gcs_path'):
                             # Tentar ler o PDF do caminho local e salvar no Cloud Storage
                             if 'file_path' in resultado and os.path.exists(resultado['file_path']):
-                                print("☁️ Tentando salvar PDF no Cloud Storage também...")
-                                with open(resultado['file_path'], 'rb') as f:
-                                    pdf_content = f.read()
+                                file_path = resultado['file_path']
                                 
-                                bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
-                                gcs_path = salvar_pdf_gcs(pdf_content, romaneio_data.get('id_impressao'), bucket_name, is_reprint=False)
-                                
-                                if gcs_path:
-                                    print(f"✅ PDF também salvo no Cloud Storage: {gcs_path}")
-                                    resultado['gcs_path'] = gcs_path
+                                # Verificar se é realmente um PDF (não HTML)
+                                if file_path.lower().endswith('.pdf'):
+                                    print("☁️ Salvando PDF APENAS no Cloud Storage...")
+                                    print(f"📄 Arquivo temporário: {file_path}")
+                                    
+                                    try:
+                                        with open(file_path, 'rb') as f:
+                                            pdf_content = f.read()
+                                        
+                                        # Deletar arquivo local imediatamente após ler
+                                        try:
+                                            os.unlink(file_path)
+                                            print(f"🗑️ Arquivo temporário removido: {file_path}")
+                                        except:
+                                            pass
+                                        
+                                        # Verificar se o conteúdo é realmente um PDF (começa com %PDF)
+                                        if pdf_content.startswith(b'%PDF'):
+                                            bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+                                            print(f"☁️ Salvando PDF APENAS no Cloud Storage...")
+                                            print(f"📦 Bucket: {bucket_name}")
+                                            print(f"🆔 Romaneio ID: {romaneio_data.get('id_impressao')}")
+                                            
+                                            gcs_path = salvar_pdf_gcs(pdf_content, romaneio_data.get('id_impressao'), bucket_name, is_reprint=False)
+                                            
+                                            if gcs_path:
+                                                print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
+                                                resultado['gcs_path'] = gcs_path
+                                                resultado['message'] = 'PDF salvo no Cloud Storage'
+                                            else:
+                                                print("❌ Falha ao salvar no Cloud Storage")
+                                                resultado['success'] = False
+                                                resultado['message'] = 'Erro ao salvar no Cloud Storage'
+                                        else:
+                                            print(f"⚠️ Arquivo não é um PDF válido (começa com: {pdf_content[:20]})")
+                                            resultado['success'] = False
+                                    except Exception as e:
+                                        print(f"⚠️ Erro ao ler arquivo PDF: {e}")
+                                        import traceback
+                                        traceback.print_exc()
+                                        resultado['success'] = False
                                 else:
-                                    print("⚠️ Falha ao salvar no Cloud Storage, mas PDF local foi salvo")
+                                    print(f"⚠️ Arquivo não é PDF (extensão: {file_path})")
+                                    resultado['success'] = False
                 except Exception as e:
                     print(f"⚠️ Erro ao tentar salvar no Cloud Storage (continuando): {e}")
                     import traceback
@@ -3051,9 +3085,82 @@ def controle_impressoes():
             impressoes_filtradas = [imp for imp in impressoes_filtradas if id_filtro.lower() in imp.get('id_impressao', '').lower()]
         
         # Adicionar informações sobre PDFs para cada impressão
-        for impressao in impressoes_filtradas:
-            pdf_info = verificar_pdf_romaneio(impressao.get('id_impressao', ''))
-            impressao['pdf_info'] = pdf_info
+        # Otimização: listar todos os PDFs do Cloud Storage de uma vez (MUITO mais rápido!)
+        try:
+            from salvar_pdf_gcs import get_gcs_client
+            
+            bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+            gcs_client = get_gcs_client()
+            
+            if gcs_client:
+                bucket = gcs_client.bucket(bucket_name)
+                print(f"⚡ Listando todos os PDFs do Cloud Storage em batch...")
+                
+                # Listar todos os PDFs do bucket de uma vez (muito mais rápido que verificar cada um)
+                try:
+                    # Listar apenas PDFs que começam com ROM- (romaneios)
+                    blobs = list(bucket.list_blobs(prefix='ROM-'))
+                    
+                    # Criar dicionário de lookup rápido: {nome_arquivo_sem_extensao: blob_info}
+                    pdfs_no_cloud = {}
+                    for blob in blobs:
+                        nome_completo = blob.name  # Ex: "ROM-000001.pdf" ou "ROM-000001_Copia.pdf"
+                        # Extrair ID do romaneio (remover extensão e sufixo _Copia se houver)
+                        if nome_completo.endswith('_Copia.pdf'):
+                            id_romaneio = nome_completo.replace('_Copia.pdf', '')
+                            pdfs_no_cloud[id_romaneio] = {
+                                'tipo': 'copia',
+                                'blob': blob,
+                                'nome': nome_completo
+                            }
+                        elif nome_completo.endswith('.pdf'):
+                            id_romaneio = nome_completo.replace('.pdf', '')
+                            # Priorizar original sobre cópia
+                            if id_romaneio not in pdfs_no_cloud:
+                                pdfs_no_cloud[id_romaneio] = {
+                                    'tipo': 'original',
+                                    'blob': blob,
+                                    'nome': nome_completo
+                                }
+                    
+                    print(f"✅ Encontrados {len(pdfs_no_cloud)} PDFs únicos no Cloud Storage")
+                    
+                    # Agora verificar cada romaneio rapidamente usando o dicionário (O(1) lookup)
+                    for impressao in impressoes_filtradas:
+                        id_romaneio = impressao.get('id_impressao', '')
+                        
+                        if id_romaneio in pdfs_no_cloud:
+                            pdf_data = pdfs_no_cloud[id_romaneio]
+                            blob = pdf_data['blob']
+                            pdf_info = {
+                                'existe': True,
+                                'tipo': pdf_data['tipo'],
+                                'caminho': f"gs://{bucket_name}/{pdf_data['nome']}",
+                                'nome': pdf_data['nome'],
+                                'tamanho': blob.size,
+                                'data_modificacao': blob.updated,
+                                'local': 'cloud_storage'
+                            }
+                        else:
+                            pdf_info = {'existe': False}
+                        
+                        impressao['pdf_info'] = pdf_info
+                    
+                except Exception as e:
+                    print(f"⚠️ Erro ao listar PDFs do Cloud Storage: {e}")
+                    # Fallback: marcar todos como não encontrados (melhor que travar)
+                    for impressao in impressoes_filtradas:
+                        impressao['pdf_info'] = {'existe': False}
+            else:
+                # Sem cliente GCS, marcar todos como não encontrados
+                for impressao in impressoes_filtradas:
+                    impressao['pdf_info'] = {'existe': False}
+                    
+        except Exception as e:
+            print(f"⚠️ Erro ao verificar PDFs no Cloud Storage: {e}")
+            # Se der erro, apenas marcar como não encontrado
+            for impressao in impressoes_filtradas:
+                impressao['pdf_info'] = {'existe': False}
         
         return render_template('controle_impressoes.html', 
                              impressoes=impressoes_filtradas,
@@ -3129,9 +3236,28 @@ def imprimir_romaneio(id_impressao):
                     download_name=nome_arquivo_copia
                 )
             else:
-                print(f"❌ PDF não encontrado localmente: {caminho_original}")
-                flash(f'PDF do romaneio {id_impressao} não encontrado', 'error')
-                return redirect(url_for('controle_impressoes'))
+                # Não encontrou localmente, tentar buscar do Cloud Storage
+                print(f"⚠️ PDF não encontrado localmente, tentando buscar do Cloud Storage...")
+                try:
+                    from salvar_pdf_gcs import buscar_pdf_gcs
+                    bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+                    pdf_content = buscar_pdf_gcs(id_impressao, bucket_name)
+                    
+                    if pdf_content:
+                        print(f"✅ PDF encontrado no Cloud Storage")
+                        return Response(
+                            pdf_content,
+                            mimetype='application/pdf',
+                            headers={'Content-Disposition': f'inline; filename="{id_impressao}.pdf"'}
+                        )
+                    else:
+                        print(f"❌ PDF não encontrado nem localmente nem no Cloud Storage: {caminho_original}")
+                        flash(f'PDF do romaneio {id_impressao} não encontrado', 'error')
+                        return redirect(url_for('controle_impressoes'))
+                except Exception as e:
+                    print(f"❌ Erro ao buscar PDF do Cloud Storage: {e}")
+                    flash(f'PDF do romaneio {id_impressao} não encontrado', 'error')
+                    return redirect(url_for('controle_impressoes'))
             
     except Exception as e:
         print(f"❌ Erro ao imprimir romaneio: {e}")
@@ -3140,18 +3266,23 @@ def imprimir_romaneio(id_impressao):
         flash('Erro ao abrir PDF do romaneio', 'error')
         return redirect(url_for('controle_impressoes'))
 
-def verificar_pdf_romaneio(id_impressao):
-    """Verifica se existe PDF do romaneio e retorna informações"""
+def verificar_pdf_romaneio(id_impressao, gcs_client=None, gcs_bucket=None):
+    """Verifica se existe PDF do romaneio e retorna informações (local e Cloud Storage)
+    
+    Args:
+        id_impressao: ID do romaneio
+        gcs_client: Cliente GCS (opcional, se fornecido não cria novo)
+        gcs_bucket: Bucket GCS (opcional, se fornecido não cria novo)
+    """
     import os
     from datetime import datetime
     
     pasta_pdfs = 'Romaneios_Separacao'
     
-    # Verificar PDF original
+    # PRIMEIRO: Verificar arquivo local (se existir)
     nome_original = f"{id_impressao}.pdf"
     caminho_original = os.path.join(pasta_pdfs, nome_original)
     
-    # Verificar PDF de cópia
     nome_copia = f"{id_impressao}_Copia.pdf"
     caminho_copia = os.path.join(pasta_pdfs, nome_copia)
     
@@ -3163,7 +3294,8 @@ def verificar_pdf_romaneio(id_impressao):
             'caminho': caminho_original,
             'nome': nome_original,
             'tamanho': stat.st_size,
-            'data_modificacao': datetime.fromtimestamp(stat.st_mtime)
+            'data_modificacao': datetime.fromtimestamp(stat.st_mtime),
+            'local': 'local'
         }
     elif os.path.exists(caminho_copia):
         stat = os.stat(caminho_copia)
@@ -3173,10 +3305,61 @@ def verificar_pdf_romaneio(id_impressao):
             'caminho': caminho_copia,
             'nome': nome_copia,
             'tamanho': stat.st_size,
-            'data_modificacao': datetime.fromtimestamp(stat.st_mtime)
+            'data_modificacao': datetime.fromtimestamp(stat.st_mtime),
+            'local': 'local'
         }
-    else:
-        return {'existe': False}
+    
+    # SEGUNDO: Se não encontrou local, verificar no Cloud Storage
+    try:
+        from salvar_pdf_gcs import get_gcs_client
+        
+        bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+        
+        # Usar cliente fornecido ou criar novo (apenas se necessário)
+        if gcs_bucket:
+            bucket = gcs_bucket
+        elif gcs_client:
+            bucket = gcs_client.bucket(bucket_name)
+        else:
+            # Apenas criar cliente se não foi fornecido
+            client = get_gcs_client()
+            if not client:
+                return {'existe': False}
+            bucket = client.bucket(bucket_name)
+            
+        # Verificar arquivo original no Cloud Storage
+        blob_original = bucket.blob(f"{id_impressao}.pdf")
+        if blob_original.exists():
+            blob_original.reload()  # Recarregar para pegar metadata
+            return {
+                'existe': True,
+                'tipo': 'original',
+                'caminho': f"gs://{bucket_name}/{id_impressao}.pdf",
+                'nome': nome_original,
+                'tamanho': blob_original.size,
+                'data_modificacao': blob_original.updated,
+                'local': 'cloud_storage'
+            }
+        
+        # Verificar arquivo de cópia no Cloud Storage
+        blob_copia = bucket.blob(f"{id_impressao}_Copia.pdf")
+        if blob_copia.exists():
+            blob_copia.reload()  # Recarregar para pegar metadata
+            return {
+                'existe': True,
+                'tipo': 'copia',
+                'caminho': f"gs://{bucket_name}/{id_impressao}_Copia.pdf",
+                'nome': nome_copia,
+                'tamanho': blob_copia.size,
+                'data_modificacao': blob_copia.updated,
+                'local': 'cloud_storage'
+            }
+    except Exception as e:
+        # Não imprimir erro para cada PDF (muito verbose)
+        pass
+    
+    # Não encontrou nem local nem no Cloud Storage
+    return {'existe': False}
 
 @app.route('/processar-romaneio/<id_impressao>')
 @login_required
@@ -4147,11 +4330,11 @@ def reimprimir_romaneio(id_impressao):
         if os.getenv('GAE_APPLICATION'):
             # Google Cloud - usar ReportLab
             from pdf_cloud_generator import salvar_pdf_cloud
-            resultado = salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separacao', is_reprint=True)
+            resultado = salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=True)
         else:
             # Desenvolvimento local - usar Chrome headless
             from pdf_browser_generator import salvar_pdf_direto_html
-            resultado = salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino='Romaneios_Separacao', is_reprint=True)
+            resultado = salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_reprint=True)
         
         if not resultado['success']:
             flash(f'Erro ao gerar cópia: {resultado["message"]}', 'error')

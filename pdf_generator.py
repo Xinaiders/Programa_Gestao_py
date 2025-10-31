@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Módulo para geração de PDF e integração com Google Drive
+Módulo para geração de PDF e salvamento no Cloud Storage
+(Google Drive removido - usando apenas Cloud Storage)
 """
 
 import os
@@ -195,6 +196,12 @@ def gerar_pdf_romaneio(romaneio_data, itens_data, is_reprint=False):
     buffer.seek(0)
     return buffer.getvalue()
 
+# ============================================================================
+# FUNÇÕES DO GOOGLE DRIVE - REMOVIDAS
+# ============================================================================
+# Estas funções foram removidas pois agora usamos apenas Cloud Storage
+# Mantidas comentadas para referência histórica
+"""
 def conectar_google_drive():
     """
     Conecta com Google Drive API
@@ -356,6 +363,7 @@ def buscar_pasta_por_nome(service, nome_pasta, pasta_pai_id=None):
     except Exception as e:
         print(f"❌ Erro ao buscar pasta: {e}")
         return None
+"""
 
 def salvar_pdf_local(pasta_destino, romaneio_id, pdf_content, is_reprint=False):
     """
@@ -405,7 +413,7 @@ def salvar_pdf_local(pasta_destino, romaneio_id, pdf_content, is_reprint=False):
 
 def gerar_e_salvar_romaneio_pdf(romaneio_data, itens_data, pasta_destino=None, is_reprint=False):
     """
-    Função principal: gera PDF e salva (local ou Google Drive)
+    Função principal: gera PDF e salva localmente (Cloud Storage é salvo automaticamente depois)
     
     Args:
         romaneio_data: Dados do romaneio
@@ -423,62 +431,21 @@ def gerar_e_salvar_romaneio_pdf(romaneio_data, itens_data, pasta_destino=None, i
         pdf_content = gerar_pdf_romaneio(romaneio_data, itens_data, is_reprint)
         print(f"✅ PDF gerado: {len(pdf_content)} bytes")
         
-        # Determinar tipo de armazenamento
-        try:
-            from config_pdf import obter_tipo_armazenamento, obter_configuracao_pasta
-            tipo_armazenamento = obter_tipo_armazenamento()
-            if not pasta_destino:
-                pasta_destino = obter_configuracao_pasta()
-        except ImportError:
-            tipo_armazenamento = 'local'
-            if not pasta_destino:
-                pasta_destino = 'Romaneios_Separacao'
+        # Sempre salvar localmente (Cloud Storage é salvo automaticamente depois)
+        if not pasta_destino:
+            pasta_destino = 'Romaneios_Separacao'
         
-        if tipo_armazenamento == 'local':
-            # Salvar localmente
-            filepath = salvar_pdf_local(pasta_destino, romaneio_data.get('id_impressao'), pdf_content, is_reprint)
-            if not filepath:
-                return {'success': False, 'message': 'Erro ao salvar PDF localmente'}
-            
-            return {
-                'success': True,
-                'message': 'PDF gerado e salvo localmente',
-                'file_path': filepath,
-                'tipo': 'local'
-            }
+        # Salvar localmente
+        filepath = salvar_pdf_local(pasta_destino, romaneio_data.get('id_impressao'), pdf_content, is_reprint)
+        if not filepath:
+            return {'success': False, 'message': 'Erro ao salvar PDF localmente'}
         
-        else:
-            # Salvar no Google Drive
-            service = conectar_google_drive()
-            if not service:
-                return {'success': False, 'message': 'Erro ao conectar com Google Drive'}
-            
-            # Determinar pasta de destino
-            folder_id = None
-            
-            if pasta_destino:
-                # Buscar pasta específica
-                folder_id = buscar_pasta_por_nome(service, pasta_destino)
-                if not folder_id:
-                    return {'success': False, 'message': f'Pasta "{pasta_destino}" não encontrada no Google Drive'}
-            else:
-                # Usar pasta padrão
-                folder_id = criar_pasta_romaneios(service)
-                if not folder_id:
-                    return {'success': False, 'message': 'Erro ao criar/obter pasta no Google Drive'}
-            
-            # Salvar PDF
-            file_id = salvar_pdf_google_drive(service, folder_id, romaneio_data.get('id_impressao'), pdf_content)
-            if not file_id:
-                return {'success': False, 'message': 'Erro ao salvar PDF no Google Drive'}
-            
-            return {
-                'success': True,
-                'message': 'PDF gerado e salvo no Google Drive',
-                'file_id': file_id,
-                'folder_id': folder_id,
-                'tipo': 'google_drive'
-            }
+        return {
+            'success': True,
+            'message': 'PDF gerado e salvo localmente',
+            'file_path': filepath,
+            'tipo': 'local'
+        }
         
     except Exception as e:
         print(f"❌ Erro ao gerar e salvar PDF: {e}")
@@ -518,7 +485,7 @@ def buscar_pdf_romaneio_local(pasta_destino, romaneio_id):
 
 def buscar_pdf_romaneio(romaneio_id):
     """
-    Busca PDF do romaneio (local ou Google Drive)
+    Busca PDF do romaneio (apenas local - Cloud Storage é buscado em outra função)
     
     Args:
         romaneio_id: ID do romaneio
@@ -527,43 +494,9 @@ def buscar_pdf_romaneio(romaneio_id):
         bytes: Conteúdo do PDF ou None se não encontrado
     """
     try:
-        # Determinar tipo de armazenamento
-        try:
-            from config_pdf import obter_tipo_armazenamento, obter_configuracao_pasta
-            tipo_armazenamento = obter_tipo_armazenamento()
-            pasta_destino = obter_configuracao_pasta()
-        except ImportError:
-            tipo_armazenamento = 'local'
-            pasta_destino = 'Romaneios_Separacao'
-        
-        if tipo_armazenamento == 'local':
-            # Buscar localmente
-            return buscar_pdf_romaneio_local(pasta_destino, romaneio_id)
-        
-        else:
-            # Buscar no Google Drive
-            service = conectar_google_drive()
-            if not service:
-                return None
-            
-            # Buscar arquivo
-            filename = f"{romaneio_id}.pdf"
-            query = f"name='{filename}' and mimeType='application/pdf' and trashed=false"
-            results = service.files().list(q=query).execute()
-            
-            if not results['files']:
-                print(f"❌ PDF não encontrado: {filename}")
-                return None
-            
-            # Obter ID do arquivo
-            file_id = results['files'][0]['id']
-            
-            # Baixar arquivo
-            request = service.files().get_media(fileId=file_id)
-            file_content = request.execute()
-            
-            print(f"✅ PDF encontrado no Google Drive: {filename}")
-            return file_content
+        # Sempre buscar localmente primeiro
+        pasta_destino = 'Romaneios_Separacao'
+        return buscar_pdf_romaneio_local(pasta_destino, romaneio_id)
         
     except Exception as e:
         print(f"❌ Erro ao buscar PDF: {e}")

@@ -27,10 +27,6 @@ def gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino='Romaneios
         dict: Resultado da operação
     """
     try:
-        # Criar pasta se não existir (para desenvolvimento local)
-        if not os.path.exists(pasta_destino):
-            os.makedirs(pasta_destino, exist_ok=True)
-        
         # Nome do arquivo
         romaneio_id = romaneio_data.get('id_impressao', 'ROM-000001')
         if is_reprint:
@@ -38,7 +34,16 @@ def gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino='Romaneios
         else:
             filename = f"{romaneio_id}.pdf"
         
-        filepath = os.path.join(pasta_destino, filename)
+        # Se pasta_destino for None, usar arquivo temporário
+        if pasta_destino is None:
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            filepath = os.path.join(temp_dir, filename)
+        else:
+            # Criar pasta se não existir (para desenvolvimento local)
+            if not os.path.exists(pasta_destino):
+                os.makedirs(pasta_destino, exist_ok=True)
+            filepath = os.path.join(pasta_destino, filename)
         
         # Criar documento PDF
         doc = SimpleDocTemplate(
@@ -177,7 +182,7 @@ def gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino='Romaneios
             'message': f'Erro: {str(e)}'
         }
 
-def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separacao', is_reprint=False):
+def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=False):
     """
     Função de compatibilidade - converte HTML para dados e gera PDF
     Salva no Cloud Storage se estiver no GCP, senão salva localmente
@@ -220,9 +225,16 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separ
                 print("☁️ Detectado ambiente Cloud Run - tentando salvar no Cloud Storage")
                 # Ler o PDF gerado
                 if 'file_path' in pdf_result and os.path.exists(pdf_result['file_path']):
-                    print(f"📄 Lendo PDF do caminho: {pdf_result['file_path']}")
+                    print(f"📄 Lendo PDF do caminho temporário: {pdf_result['file_path']}")
                     with open(pdf_result['file_path'], 'rb') as f:
                         pdf_content = f.read()
+                    
+                    # Deletar arquivo temporário imediatamente após ler
+                    try:
+                        os.unlink(pdf_result['file_path'])
+                        print(f"🗑️ Arquivo temporário removido: {pdf_result['file_path']}")
+                    except:
+                        pass
                     
                     print(f"📊 Tamanho do PDF: {len(pdf_content)} bytes")
                     
@@ -237,10 +249,14 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino='Romaneios_Separ
                     if gcs_path:
                         print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
                         pdf_result['gcs_path'] = gcs_path
+                        pdf_result['message'] = 'PDF salvo no Cloud Storage'
                     else:
                         print(f"❌ Falha ao salvar no Cloud Storage (retornou None)")
+                        pdf_result['success'] = False
+                        pdf_result['message'] = 'Erro ao salvar no Cloud Storage'
                 else:
                     print(f"❌ PDF não encontrado no caminho: {pdf_result.get('file_path')}")
+                    pdf_result['success'] = False
             except Exception as e:
                 print(f"⚠️ Erro ao salvar no Cloud Storage (continuando): {e}")
                 import traceback
