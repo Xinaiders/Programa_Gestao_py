@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Gerador de PDF compatível com Google Cloud Platform
-Mantém o layout original do HTML usando xhtml2pdf (compatível com Cloud Run)
+Usa xhtml2pdf para manter layout HTML (compatível com Cloud Run)
 """
 
 import os
@@ -17,14 +17,7 @@ def gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino='Romaneios
 def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=False, itens_data=None):
     """
     Converte HTML diretamente para PDF mantendo o layout original
-    Usa xhtml2pdf no Cloud Run para manter layout idêntico ao HTML (compatível sem dependências de sistema)
-    
-    Args:
-        html_content: Conteúdo HTML renderizado
-        romaneio_data: Dados do romaneio
-        pasta_destino: Pasta de destino (None para usar arquivo temporário)
-        is_reprint: Se é reimpressão
-        itens_data: Não usado (mantido para compatibilidade)
+    Usa xhtml2pdf no Cloud Run para manter layout idêntico ao HTML
     """
     try:
         import os
@@ -212,7 +205,7 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
             # Ler conteúdo do PDF
             try:
                 with open(filepath, 'rb') as f:
-                        pdf_content = f.read()
+                    pdf_content = f.read()
             except Exception as read_error:
                 error_msg = f'ERRO ao ler arquivo PDF: {read_error}'
                 print(f"❌ {error_msg}")
@@ -237,7 +230,7 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
                 pdf_result['message'] = error_msg
                 return pdf_result
                     
-                    print(f"📊 Tamanho do PDF: {len(pdf_content)} bytes")
+            print(f"📊 Tamanho do PDF: {len(pdf_content)} bytes")
                     
             # Deletar arquivo temporário imediatamente após ler
             try:
@@ -245,31 +238,31 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
                 print(f"🗑️ Arquivo temporário removido: {filepath}")
             except Exception as del_error:
                 print(f"⚠️ Aviso: Não foi possível deletar arquivo temporário: {del_error}")
-            
-                    # Salvar no Cloud Storage
-                    from salvar_pdf_gcs import salvar_pdf_gcs
-                    bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
-                    print(f"📦 Bucket: {bucket_name}")
+                    
+            # Salvar no Cloud Storage
+            from salvar_pdf_gcs import salvar_pdf_gcs
+            bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+            print(f"📦 Bucket: {bucket_name}")
             print(f"🆔 Romaneio ID: {romaneio_id}")
             print(f"📤 Chamando salvar_pdf_gcs com {len(pdf_content)} bytes...")
                     
             gcs_path = salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name, is_reprint)
                     
-                    if gcs_path:
-                        print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
-                        pdf_result['gcs_path'] = gcs_path
+            if gcs_path:
+                print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
+                pdf_result['gcs_path'] = gcs_path
                 pdf_result['message'] = 'PDF salvo no Cloud Storage'
-                    else:
+            else:
                 error_msg = 'Falha ao salvar no Cloud Storage (retornou None)'
                 print(f"❌ {error_msg}")
                 pdf_result['success'] = False
                 pdf_result['message'] = error_msg
                 
-            except Exception as e:
+        except Exception as e:
             error_msg = f'ERRO CRÍTICO ao salvar no Cloud Storage: {e}'
             print(f"❌ {error_msg}")
-                import traceback
-                traceback.print_exc()
+            import traceback
+            traceback.print_exc()
             pdf_result['success'] = False
             pdf_result['message'] = error_msg
         
