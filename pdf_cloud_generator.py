@@ -14,14 +14,248 @@ def gerar_pdf_cloud_romaneio(romaneio_data, itens_data, pasta_destino='Romaneios
     """
     pass
 
+def otimizar_html_para_xhtml2pdf(html_content, data_impressao=None):
+    """
+    Otimiza HTML para melhor renderização no xhtml2pdf
+    xhtml2pdf tem limitações: remove flexbox, gradientes, Bootstrap complexo, Font Awesome
+    
+    Args:
+        html_content: HTML original
+        data_impressao: Data de impressão no formato dd/mm/yyyy, HH:MM:SS (opcional)
+    """
+    import re
+    
+    # Remover Font Awesome (substituir ícones por texto ou remover)
+    html_content = re.sub(r'<i class="[^"]*fa[s]?[^"]*"[^>]*></i>', '', html_content)
+    
+    # Remover links externos (Bootstrap, Font Awesome) - não funcionam no xhtml2pdf
+    html_content = re.sub(r'<link[^>]*bootstrap[^>]*>', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<link[^>]*font-awesome[^>]*>', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<script[^>]*bootstrap[^>]*>.*?</script>', '', html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Substituir gradientes por cores sólidas
+    html_content = re.sub(
+        r'linear-gradient\([^)]+\)',
+        '#667eea',  # Cor sólida do gradiente
+        html_content
+    )
+    
+    # Remover estilos que xhtml2pdf não suporta bem
+    # Remover hover, transitions, transformações
+    html_content = re.sub(r'\.tabela-separacao tr:hover\s*\{[^}]+\}', '', html_content)
+    html_content = re.sub(r'transition:[^;]+;', '', html_content)
+    html_content = re.sub(r'transform:[^;]+;', '', html_content)
+    html_content = re.sub(r'box-shadow:[^;]+;', '', html_content)
+    
+    # Simplificar flexbox para display block
+    html_content = re.sub(r'display:\s*flex;', 'display: block;', html_content)
+    html_content = re.sub(r'display:\s*-webkit-box;', 'display: block;', html_content)
+    
+    # Garantir que a data seja atualizada (remover JavaScript e usar data fixa se necessário)
+    # Remover scripts que podem causar problemas
+    html_content = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Substituir span id="dataAtual" por data real
+    if data_impressao:
+        data_formatada = data_impressao
+    else:
+        from datetime import datetime
+        data_formatada = datetime.now().strftime('%d/%m/%Y, %H:%M:%S')
+    
+    html_content = re.sub(
+        r'<span id="dataAtual">[^<]*</span>',
+        f'<span id="dataAtual">{data_formatada}</span>',
+        html_content
+    )
+    
+    # Adicionar CSS otimizado para xhtml2pdf ANTES do </head>
+    css_otimizado = """
+    <style type="text/css">
+        @page {
+            size: A4 landscape;
+            margin: 0.8cm;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10pt;
+            margin: 0;
+            padding: 0;
+            background: white;
+            color: #000;
+        }
+        .formulario-container {
+            width: 100%;
+            margin: 0;
+            padding: 0 10px;
+        }
+        .formulario-header {
+            background: #667eea !important;
+            color: white !important;
+            padding: 12px 0 !important;
+            margin-bottom: 10px !important;
+            border-bottom: 2px solid #000 !important;
+        }
+        .formulario-title {
+            font-size: 18pt !important;
+            font-weight: bold !important;
+            margin: 0 !important;
+            color: white !important;
+        }
+        .formulario-subtitle {
+            font-size: 12pt !important;
+            margin: 4px 0 !important;
+            color: white !important;
+        }
+        .tabela-container {
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            margin: 10px 0 !important;
+            background: white !important;
+        }
+        .tabela-separacao {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 9pt !important;
+            margin: 0 !important;
+        }
+        .tabela-separacao th {
+            background: #f5f5f5 !important;
+            color: #000 !important;
+            border: 1px solid #000 !important;
+            padding: 8px 4px !important;
+            font-size: 8pt !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+        }
+        .tabela-separacao td {
+            border: 1px solid #000 !important;
+            padding: 6px 4px !important;
+            font-size: 9pt !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+        .tabela-separacao tr:nth-child(even) {
+            background-color: #fafafa !important;
+        }
+        .col-data-hora {
+            width: 10% !important;
+        }
+        .col-solicitante {
+            width: 8% !important;
+        }
+        .col-codigo {
+            width: 6% !important;
+            font-weight: bold !important;
+            background: #e3f2fd !important;
+        }
+        .col-descricao {
+            width: 22% !important;
+            text-align: left !important;
+        }
+        .col-alta-demanda {
+            width: 7% !important;
+        }
+        .col-localizacao {
+            width: 9% !important;
+            background: #fff3cd !important;
+            font-weight: bold !important;
+        }
+        .col-saldo-estoque {
+            width: 8% !important;
+        }
+        .col-media-consumo {
+            width: 8% !important;
+            font-weight: bold !important;
+        }
+        .col-saldo-ficou {
+            width: 9% !important;
+            background: #f8f9fa !important;
+        }
+        .col-qtd-pendente {
+            width: 8% !important;
+        }
+        .col-qtd-separada {
+            width: 9% !important;
+            background: #f8f9fa !important;
+        }
+        .quantidade-cell {
+            font-weight: bold !important;
+        }
+        .quantidade-saldo {
+            color: #f39c12 !important;
+            font-weight: bold !important;
+        }
+        .quantidade-pendente {
+            color: #e74c3c !important;
+            font-weight: bold !important;
+        }
+        .localizacao-cell {
+            font-family: monospace !important;
+            font-size: 10pt !important;
+            background: #fff3cd !important;
+            padding: 2px 4px !important;
+            border-radius: 3px !important;
+        }
+        .action-buttons {
+            display: none !important;
+        }
+        .d-flex {
+            display: block !important;
+        }
+        .justify-content-between {
+            display: table !important;
+            width: 100% !important;
+        }
+        .justify-content-between > div {
+            display: table-cell !important;
+            vertical-align: top !important;
+        }
+        .justify-content-between > div:last-child {
+            text-align: right !important;
+        }
+        .text-end {
+            text-align: right !important;
+        }
+        .text-center {
+            text-align: center !important;
+        }
+        .mt-4 {
+            margin-top: 15px !important;
+        }
+        small {
+            font-size: 8pt !important;
+            color: #666 !important;
+        }
+        strong {
+            font-weight: bold !important;
+        }
+    </style>
+    """
+    
+    # Inserir CSS otimizado antes de </head>
+    if '</head>' in html_content:
+        html_content = html_content.replace('</head>', css_otimizado + '</head>')
+    
+    return html_content
+
 def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=False, itens_data=None):
     """
     Converte HTML diretamente para PDF mantendo o layout original
-    Usa xhtml2pdf no Cloud Run para manter layout idêntico ao HTML
+    Usa xhtml2pdf no Cloud Run - HTML otimizado para melhor renderização
     """
     try:
         import os
         import tempfile
+        
+        # Otimizar HTML para xhtml2pdf ANTES de processar
+        print("🔧 Otimizando HTML para xhtml2pdf...")
+        data_impressao = romaneio_data.get('data_impressao', None)
+        html_content = otimizar_html_para_xhtml2pdf(html_content, data_impressao)
+        print("✅ HTML otimizado para melhor compatibilidade com xhtml2pdf")
         
         # Nome do arquivo
         romaneio_id = romaneio_data.get('id_impressao', 'ROM-000001')
