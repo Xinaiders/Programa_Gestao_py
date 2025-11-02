@@ -6,9 +6,10 @@
 <style>
 /* Reset e base */
 .dashboard-container {
-    background-color: #f8f9fa;
+    background-color: var(--bg-primary);
     min-height: 100vh;
     padding: 0;
+    transition: background-color 0.3s ease;
 }
 
 /* Header ultra-compacto */
@@ -40,13 +41,14 @@
 
 /* Cards ultra-compactos */
 .stat-card {
-    background: white;
+    background: var(--bg-secondary);
     border-radius: 6px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    box-shadow: var(--card-shadow);
     border: none;
     transition: all 0.3s ease;
     overflow: hidden;
     height: 100%;
+    color: var(--text-primary);
 }
 
 .stat-card:hover {
@@ -56,7 +58,7 @@
 
 .stat-card-header {
     padding: 0.7rem 0.8rem 0.3rem;
-    border-bottom: 1px solid #f1f3f4;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .stat-card-body {
@@ -68,12 +70,13 @@
     font-weight: 700;
     line-height: 1;
     margin-bottom: 0.2rem;
+    color: var(--text-primary);
 }
 
 .stat-label {
     font-size: 0.65rem;
     font-weight: 600;
-    color: #6c757d;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.3px;
     margin-bottom: 0.2rem;
@@ -81,7 +84,7 @@
 
 .stat-description {
     font-size: 0.65rem;
-    color: #868e96;
+    color: var(--text-secondary);
     margin-bottom: 0;
 }
 
@@ -124,19 +127,20 @@
 .section-title {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #495057;
+    color: var(--text-primary);
     margin-bottom: 0.7rem;
     padding-bottom: 0.2rem;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border-color);
 }
 
 /* Cards de ação ultra-compactos */
 .action-card {
-    background: white;
+    background: var(--bg-secondary);
     border-radius: 6px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    box-shadow: var(--card-shadow);
     border: none;
     transition: all 0.3s ease;
+    color: var(--text-primary);
 }
 
 .action-card:hover {

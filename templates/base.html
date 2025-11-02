@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -71,6 +71,16 @@
                             title="Forçar atualização dos dados (use quando mudar status manualmente)">
                         <i class="fas fa-refresh me-1"></i>
                         Forçar Atualização
+                    </button>
+                </div>
+                
+                <!-- Botão Toggle Tema -->
+                <div class="navbar-nav me-2">
+                    <button type="button" class="btn btn-sm btn-outline-light" 
+                            id="btnToggleTheme"
+                            data-bs-toggle="tooltip" data-bs-placement="bottom" 
+                            title="Alternar entre tema claro e escuro">
+                        <i class="fas fa-moon" id="themeIcon"></i>
                     </button>
                 </div>
                 
@@ -418,6 +428,41 @@
         if (document.getElementById('btnUserMenu')) {
             resetInactivityTimer();
         }
+        
+        // Sistema de Tema Escuro/Claro
+        (function() {
+            // Função para aplicar o tema
+            function applyTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+                
+                // Atualizar ícone do botão
+                const themeIcon = document.getElementById('themeIcon');
+                if (themeIcon) {
+                    if (theme === 'dark') {
+                        themeIcon.classList.remove('fa-moon');
+                        themeIcon.classList.add('fa-sun');
+                    } else {
+                        themeIcon.classList.remove('fa-sun');
+                        themeIcon.classList.add('fa-moon');
+                    }
+                }
+            }
+            
+            // Carregar tema salvo ou usar padrão (claro)
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            applyTheme(savedTheme);
+            
+            // Botão toggle tema
+            const btnToggleTheme = document.getElementById('btnToggleTheme');
+            if (btnToggleTheme) {
+                btnToggleTheme.addEventListener('click', function() {
+                    const currentTheme = document.documentElement.getAttribute('data-theme');
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    applyTheme(newTheme);
+                });
+            }
+        })();
     </script>
     
     {% block scripts %}{% endblock %}
