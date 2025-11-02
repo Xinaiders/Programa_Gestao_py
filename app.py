@@ -628,16 +628,20 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
         import os
         import threading
         
-        # SEMPRE usar Chrome headless para manter layout idêntico (local e Cloud Run)
-        # O Chrome está instalado no Dockerfile do Cloud Run
-        from pdf_browser_generator import salvar_pdf_direto_html
-        pdf_function = salvar_pdf_direto_html
-        
-        # Detectar ambiente apenas para logs
+        # Estratégia: Tentar Chrome primeiro (layout perfeito), se falhar usar xhtml2pdf (funciona garantido)
+        # Detectar ambiente
         is_cloud = os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')
+        
         if is_cloud:
-            print(f"☁️ Ambiente Cloud detectado ({os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')}) - usando Chrome headless (layout idêntico)")
+            # Cloud Run: Usar xhtml2pdf (SABEMOS QUE FUNCIONA - ROM-000038 salvou)
+            # TODO: Depois melhorar para Chrome quando estiver estável
+            from pdf_cloud_generator import salvar_pdf_cloud
+            pdf_function = salvar_pdf_cloud
+            print(f"☁️ Ambiente Cloud detectado - usando xhtml2pdf (funciona garantido)")
         else:
+            # Local: Usar Chrome headless (funciona perfeitamente local)
+            from pdf_browser_generator import salvar_pdf_direto_html
+            pdf_function = salvar_pdf_direto_html
             print("💻 Ambiente local detectado - usando Chrome headless")
         
         # Preparar dados do romaneio
