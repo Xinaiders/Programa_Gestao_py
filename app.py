@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf.csrf import CSRFProtect
+from flask_mail import Mail, Message
+import traceback
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta, date
 import os
@@ -22,6 +24,31 @@ app = Flask(__name__)
 
 # Configuração do SECRET_KEY - Usar variável de ambiente no Google Cloud
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Configuração de timeout de sessão - 2 horas de inatividade
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True  # Atualiza o timeout a cada requisição
+
+# Configuração de e-mail para notificações de erro
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
+app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() in ['true', 'on', '1']
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config.get('MAIL_USERNAME'))
+# IMPORTANTE: Nunca hardcodar e-mails ou senhas!
+# Use apenas variáveis de ambiente em produção
+app.config['ERROR_EMAIL_RECIPIENT'] = os.environ.get('ERROR_EMAIL_RECIPIENT')
+if not app.config['ERROR_EMAIL_RECIPIENT']:
+    # Apenas para desenvolvimento local - NUNCA em produção!
+    if os.environ.get('FLASK_ENV') != 'production' and not os.environ.get('GAE_ENV'):
+        app.config['ERROR_EMAIL_RECIPIENT'] = 'marcosvinicius.info@gmail.com'
+        print("⚠️  AVISO: ERROR_EMAIL_RECIPIENT não configurado. Usando valor padrão (apenas desenvolvimento)")
+    else:
+        raise ValueError("❌ ERROR_EMAIL_RECIPIENT deve ser configurado via variável de ambiente em produção!")
+
+mail = Mail(app)
 
 # Configuração do banco de dados
 # Se estiver no Google Cloud, usar Cloud SQL
@@ -1403,6 +1430,29 @@ class Log(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# Verificar timeout de sessão antes de cada requisição
+@app.before_request
+def check_session_timeout():
+    """Verifica se a sessão expirou devido a inatividade"""
+    if current_user.is_authenticated:
+        # Verificar última atividade
+        last_activity = session.get('last_activity')
+        if last_activity:
+            try:
+                last_activity_time = datetime.fromisoformat(last_activity)
+                time_diff = datetime.now() - last_activity_time
+                # Se passaram mais de 2 horas de inatividade
+                if time_diff > timedelta(hours=2):
+                    logout_user()
+                    flash('Sua sessão expirou devido à inatividade. Por favor, faça login novamente.', 'warning')
+                    return redirect(url_for('login'))
+            except (ValueError, TypeError):
+                # Se houver erro ao ler a data, atualizar
+                pass
+        
+        # Atualizar última atividade a cada requisição
+        session['last_activity'] = datetime.now().isoformat()
+
 # Adicionar csrf_token ao contexto do template
 @app.context_processor
 def inject_csrf_token():
@@ -1965,6 +2015,125 @@ def log_activity(acao, entidade, entidade_id=None, detalhes=None, status='sucess
         print(f"❌ Erro ao registrar log: {e}")
         # Não falha a operação principal se o log falhar
 
+# Função para enviar e-mail de erro
+def enviar_email_erro(excecao, contexto=None):
+    """
+    Envia e-mail ao administrador quando ocorre um erro no sistema
+    
+    Args:
+        excecao: Objeto Exception capturado
+        contexto: Dicionário com informações adicionais sobre o contexto do erro
+    """
+    try:
+        # Verificar se o e-mail está configurado
+        if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD'):
+            print("⚠️ E-mail não configurado. Configure MAIL_USERNAME e MAIL_PASSWORD para receber notificações de erro.")
+            return False
+        
+        # Informações do erro
+        tipo_erro = type(excecao).__name__
+        mensagem_erro = str(excecao)
+        traceback_erro = traceback.format_exc()
+        
+        # Informações da requisição
+        url = request.url if hasattr(request, 'url') else 'N/A'
+        metodo = request.method if hasattr(request, 'method') else 'N/A'
+        ip = request.remote_addr if hasattr(request, 'remote_addr') else 'N/A'
+        user_agent = request.headers.get('User-Agent', 'N/A') if hasattr(request, 'headers') else 'N/A'
+        
+        # Informações do usuário
+        usuario_info = 'Não autenticado'
+        if current_user.is_authenticated:
+            usuario_info = f"{current_user.username} (ID: {current_user.id}, Admin: {current_user.is_admin})"
+        
+        # Informações do contexto adicional
+        contexto_info = ''
+        if contexto:
+            contexto_info = '\n'.join([f"- {k}: {v}" for k, v in contexto.items()])
+        
+        # Montar corpo do e-mail
+        corpo_email = f"""
+⚠️ ERRO DETECTADO NO SISTEMA DE GESTÃO DE ESTOQUE
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 INFORMAÇÕES DO ERRO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Tipo de Erro: {tipo_erro}
+Mensagem: {mensagem_erro}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 CONTEXTO DA REQUISIÇÃO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+URL: {url}
+Método HTTP: {metodo}
+IP do Cliente: {ip}
+Usuário: {usuario_info}
+User-Agent: {user_agent}
+Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+
+{('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+  '📝 CONTEXTO ADICIONAL\n'
+  '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+  f'{contexto_info}\n') if contexto_info else ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 TRACEBACK COMPLETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{traceback_erro}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Por favor, investigue e corrija este erro o quanto antes.
+
+Este é um e-mail automático gerado pelo sistema de monitoramento de erros.
+        """
+        
+        # Criar mensagem
+        msg = Message(
+            subject=f'🚨 ERRO NO SISTEMA: {tipo_erro} - {mensagem_erro[:50]}...',
+            recipients=[app.config['ERROR_EMAIL_RECIPIENT']],
+            body=corpo_email,
+            sender=app.config['MAIL_DEFAULT_SENDER']
+        )
+        
+        # Enviar e-mail
+        mail.send(msg)
+        print(f"✅ E-mail de erro enviado para {app.config['ERROR_EMAIL_RECIPIENT']}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erro ao enviar e-mail de notificação: {e}")
+        print(f"   Traceback: {traceback.format_exc()}")
+        return False
+
+# Handler global de erros
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handler global para capturar todas as exceções não tratadas"""
+    # Enviar e-mail de erro
+    enviar_email_erro(e, contexto={
+        'Rota': request.endpoint if hasattr(request, 'endpoint') else 'N/A',
+        'Form Data': dict(request.form) if hasattr(request, 'form') and request.form else None,
+        'JSON Data': request.get_json() if hasattr(request, 'get_json') else None
+    })
+    
+    # Logar erro
+    log_activity('erro', 'Sistema', None, f'Erro não tratado: {type(e).__name__}: {str(e)}', 'erro')
+    
+    # Retornar resposta de erro adequada
+    if request.is_json or (hasattr(request, 'path') and request.path.startswith('/api/')):
+        return jsonify({
+            'error': True,
+            'message': 'Ocorreu um erro interno no servidor. O administrador foi notificado.',
+            'type': type(e).__name__
+        }), 500
+    
+    flash('Ocorreu um erro inesperado. O administrador foi notificado por e-mail.', 'error')
+    return render_template('error.html', error=str(e)), 500
+
 # Rotas principais
 @app.route('/')
 @login_required
@@ -2207,7 +2376,10 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
-            login_user(user)
+            # Marcar sessão como permanente para usar o timeout de 2 horas
+            login_user(user, remember=False)
+            session.permanent = True
+            session['last_activity'] = datetime.now().isoformat()
             log_activity('login', 'User', user.id, f'Login realizado com sucesso', 'sucesso')
             return redirect(url_for('index'))
         else:
@@ -2215,6 +2387,37 @@ def login():
             flash('Usuário ou senha inválidos', 'error')
     
     return render_template('login.html')
+
+@app.route('/keep-alive', methods=['POST'])
+@login_required
+def keep_alive():
+    """Endpoint para manter a sessão ativa quando usuário está usando o sistema"""
+    session['last_activity'] = datetime.now().isoformat()
+    return jsonify({'success': True, 'message': 'Sessão mantida ativa'})
+
+@app.route('/testar-email-erro')
+@login_required
+def testar_email_erro():
+    """Rota de teste para simular um erro e verificar o envio de e-mail (apenas desenvolvimento)"""
+    # Verificar se está em produção
+    if os.environ.get('FLASK_ENV') == 'production' or os.environ.get('GAE_ENV'):
+        flash('⚠️ Esta rota está desabilitada em produção por segurança.', 'warning')
+        return redirect(url_for('index'))
+    
+    # Apenas admins podem testar
+    if not current_user.is_admin:
+        flash('❌ Apenas administradores podem testar o sistema de e-mail.', 'error')
+        return redirect(url_for('index'))
+    
+    # Simular um erro com contexto relevante
+    contexto_teste = {
+        'Teste': 'Simulação de erro para verificar sistema de notificação',
+        'Usuario': current_user.username,
+        'Rota Original': '/testar-email-erro'
+    }
+    
+    # Gerar um erro intencional
+    raise Exception("🚨 ERRO DE TESTE: Este é um erro simulado para verificar se o sistema de notificação por e-mail está funcionando corretamente. Se você recebeu este e-mail, significa que o sistema está configurado corretamente!")
 
 @app.route('/logout')
 @login_required

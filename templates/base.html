@@ -121,6 +121,18 @@
                 </div>
                 <div class="modal-body p-0">
                     <div style="padding: 1rem 0;">
+                        {% if current_user.is_admin %}
+                        <a href="{{ url_for('testar_email_erro') }}" class="user-menu-item" style="display: flex; align-items: center; padding: 1rem 1.5rem; text-decoration: none; color: #333; transition: all 0.3s ease; border-bottom: 1px solid #f0f0f0;">
+                            <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                                <i class="fas fa-bug text-white"></i>
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">Testar E-mail Erro</div>
+                                <div style="font-size: 0.75rem; color: #666;">Simular erro para teste</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-muted ms-auto"></i>
+                        </a>
+                        {% endif %}
                         <a href="{{ url_for('alterar_senha') }}" class="user-menu-item" style="display: flex; align-items: center; padding: 1rem 1.5rem; text-decoration: none; color: #333; transition: all 0.3s ease; border-bottom: 1px solid #f0f0f0;">
                             <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
                                 <i class="fas fa-key text-white"></i>
@@ -338,6 +350,74 @@
                 });
             }
         });
+        
+        // Sistema de timeout de sessão - 2 horas de inatividade
+        let inactivityWarningTimer;
+        let inactivityLogoutTimer;
+        const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 horas em milissegundos
+        const WARNING_TIME_MS = 5 * 60 * 1000; // Avisar 5 minutos antes (1h55min)
+        
+        function resetInactivityTimer() {
+            // Limpar timers anteriores
+            clearTimeout(inactivityWarningTimer);
+            clearTimeout(inactivityLogoutTimer);
+            
+            // Avisar 5 minutos antes de expirar (após 1h55min de inatividade)
+            inactivityWarningTimer = setTimeout(() => {
+                if (confirm('⚠️ Você ficou inativo por 1h55min.\n\nSua sessão expirará automaticamente em 5 minutos por segurança.\n\nDeseja continuar usando o sistema?')) {
+                    // Fazer requisição para manter sessão ativa
+                    const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '';
+                    fetch('/keep-alive', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('✅ Sessão mantida ativa');
+                            resetInactivityTimer(); // Reiniciar timer
+                        } else {
+                            throw new Error('Falha ao manter sessão');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Erro ao manter sessão:', error);
+                        alert('⚠️ Não foi possível manter sua sessão ativa. Você será redirecionado para o login.');
+                        window.location.href = '/logout';
+                    });
+                } else {
+                    // Usuário escolheu não continuar - fazer logout
+                    window.location.href = '/logout';
+                }
+            }, SESSION_TIMEOUT_MS - WARNING_TIME_MS);
+            
+            // Logout automático após exatamente 2 horas de inatividade
+            inactivityLogoutTimer = setTimeout(() => {
+                alert('⏰ Sua sessão expirou devido à inatividade (2 horas).\n\nVocê será redirecionado para a tela de login por segurança.');
+                window.location.href = '/logout';
+            }, SESSION_TIMEOUT_MS);
+        }
+        
+        // Detectar atividade do usuário (clique, movimento do mouse, teclas, scroll, etc.)
+        const activityEvents = ['mousedown', 'mousemove', 'keypress', 'keydown', 'scroll', 'touchstart', 'click', 'focus'];
+        let activityTimeout;
+        activityEvents.forEach(event => {
+            document.addEventListener(event, () => {
+                // Debounce: resetar timer apenas após 60 segundos de atividade contínua
+                clearTimeout(activityTimeout);
+                activityTimeout = setTimeout(() => {
+                    resetInactivityTimer();
+                }, 60000); // Reset apenas a cada minuto de atividade
+            }, true);
+        });
+        
+        // Iniciar timer quando a página carregar
+        if (document.getElementById('btnUserMenu')) {
+            resetInactivityTimer();
+        }
     </script>
     
     {% block scripts %}{% endblock %}

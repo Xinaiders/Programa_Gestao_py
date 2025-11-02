@@ -21,3 +21,4 @@ google-cloud-storage==2.10.0
 pymysql==1.1.0
 beautifulsoup4==4.12.2
 xhtml2pdf==0.2.15
+Flask-Mail==0.9.1
