@@ -68,170 +68,104 @@ def otimizar_html_para_xhtml2pdf(html_content, data_impressao=None):
         html_content
     )
     
-    # Adicionar CSS otimizado para xhtml2pdf ANTES do </head>
+    # Adicionar CSS SIMPLES e OBJETIVO para xhtml2pdf ANTES do </head>
     css_otimizado = """
     <style type="text/css">
         @page {
             size: A4 landscape;
-            margin: 0.8cm;
-        }
-        * {
-            box-sizing: border-box;
+            margin: 1cm;
         }
         body {
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: Arial, sans-serif;
             font-size: 10pt;
             margin: 0;
             padding: 0;
-            background: white;
-            color: #000;
         }
         .formulario-container {
             width: 100%;
             margin: 0;
-            padding: 0 10px;
+            padding: 5px;
         }
         .formulario-header {
-            background: #667eea !important;
-            color: white !important;
-            padding: 12px 0 !important;
-            margin-bottom: 10px !important;
-            border-bottom: 2px solid #000 !important;
+            background: #667eea;
+            color: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #000;
         }
         .formulario-title {
-            font-size: 18pt !important;
-            font-weight: bold !important;
-            margin: 0 !important;
-            color: white !important;
+            font-size: 16pt;
+            font-weight: bold;
+            margin: 0 0 5px 0;
         }
         .formulario-subtitle {
-            font-size: 12pt !important;
-            margin: 4px 0 !important;
-            color: white !important;
+            font-size: 11pt;
+            margin: 2px 0;
         }
         .tabela-container {
-            border: 2px solid #000 !important;
-            padding: 8px !important;
-            margin: 10px 0 !important;
-            background: white !important;
+            border: 1px solid #000;
+            padding: 5px;
         }
         .tabela-separacao {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            font-size: 9pt !important;
-            margin: 0 !important;
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
         }
         .tabela-separacao th {
-            background: #f5f5f5 !important;
-            color: #000 !important;
-            border: 1px solid #000 !important;
-            padding: 8px 4px !important;
-            font-size: 8pt !important;
-            font-weight: bold !important;
-            text-align: center !important;
-            white-space: nowrap !important;
+            background: #e0e0e0;
+            border: 1px solid #000;
+            padding: 6px 4px;
+            font-size: 8pt;
+            font-weight: bold;
+            text-align: center;
         }
         .tabela-separacao td {
-            border: 1px solid #000 !important;
-            padding: 6px 4px !important;
-            font-size: 9pt !important;
-            text-align: center !important;
-            vertical-align: middle !important;
-        }
-        .tabela-separacao tr:nth-child(even) {
-            background-color: #fafafa !important;
-        }
-        .col-data-hora {
-            width: 10% !important;
-        }
-        .col-solicitante {
-            width: 8% !important;
+            border: 1px solid #000;
+            padding: 5px 3px;
+            font-size: 9pt;
+            text-align: center;
         }
         .col-codigo {
-            width: 6% !important;
-            font-weight: bold !important;
-            background: #e3f2fd !important;
-        }
-        .col-descricao {
-            width: 22% !important;
-            text-align: left !important;
-        }
-        .col-alta-demanda {
-            width: 7% !important;
+            background: #b3d9ff;
+            font-weight: bold;
         }
         .col-localizacao {
-            width: 9% !important;
-            background: #fff3cd !important;
-            font-weight: bold !important;
+            background: #fff9cc;
+            font-weight: bold;
         }
         .col-saldo-estoque {
-            width: 8% !important;
-        }
-        .col-media-consumo {
-            width: 8% !important;
-            font-weight: bold !important;
-        }
-        .col-saldo-ficou {
-            width: 9% !important;
-            background: #f8f9fa !important;
+            color: #f39c12;
+            font-weight: bold;
         }
         .col-qtd-pendente {
-            width: 8% !important;
+            color: #e74c3c;
+            font-weight: bold;
         }
-        .col-qtd-separada {
-            width: 9% !important;
-            background: #f8f9fa !important;
-        }
-        .quantidade-cell {
-            font-weight: bold !important;
-        }
-        .quantidade-saldo {
-            color: #f39c12 !important;
-            font-weight: bold !important;
-        }
-        .quantidade-pendente {
-            color: #e74c3c !important;
-            font-weight: bold !important;
-        }
-        .localizacao-cell {
-            font-family: monospace !important;
-            font-size: 10pt !important;
-            background: #fff3cd !important;
-            padding: 2px 4px !important;
-            border-radius: 3px !important;
+        .col-descricao {
+            text-align: left;
         }
         .action-buttons {
-            display: none !important;
+            display: none;
         }
         .d-flex {
-            display: block !important;
+            display: block;
         }
         .justify-content-between {
-            display: table !important;
-            width: 100% !important;
+            display: table;
+            width: 100%;
         }
         .justify-content-between > div {
-            display: table-cell !important;
-            vertical-align: top !important;
+            display: table-cell;
         }
         .justify-content-between > div:last-child {
-            text-align: right !important;
+            text-align: right;
         }
         .text-end {
-            text-align: right !important;
-        }
-        .text-center {
-            text-align: center !important;
-        }
-        .mt-4 {
-            margin-top: 15px !important;
+            text-align: right;
         }
         small {
-            font-size: 8pt !important;
-            color: #666 !important;
-        }
-        strong {
-            font-weight: bold !important;
+            font-size: 8pt;
+            color: #666;
         }
     </style>
     """
@@ -251,11 +185,19 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
         import os
         import tempfile
         
-        # Otimizar HTML para xhtml2pdf ANTES de processar
-        print("🔧 Otimizando HTML para xhtml2pdf...")
+        # IMPORTANTE: Criar cópia do HTML para não modificar o original (que é usado na tela)
+        # Apenas otimizar a cópia para salvar no Cloud Storage
+        html_original = html_content  # Manter original intacto (não usado, mas por segurança)
+        html_para_pdf = html_content  # Cópia que será otimizada
+        
+        # Otimizar HTML para xhtml2pdf APENAS para o PDF do Cloud Storage
+        print("🔧 Otimizando HTML para xhtml2pdf (apenas para Cloud Storage)...")
         data_impressao = romaneio_data.get('data_impressao', None)
-        html_content = otimizar_html_para_xhtml2pdf(html_content, data_impressao)
+        html_para_pdf = otimizar_html_para_xhtml2pdf(html_para_pdf, data_impressao)
         print("✅ HTML otimizado para melhor compatibilidade com xhtml2pdf")
+        
+        # Usar HTML otimizado daqui em diante nesta função
+        html_content = html_para_pdf
         
         # Nome do arquivo
         romaneio_id = romaneio_data.get('id_impressao', 'ROM-000001')
