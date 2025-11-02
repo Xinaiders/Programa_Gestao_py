@@ -28,14 +28,44 @@ def get_gcs_client():
         if service_account_info:
             print("📋 Carregando credenciais da variável de ambiente...")
             try:
+                # Limpar e preparar JSON (remover quebras de linha extras, espaços)
+                # Pode estar como string JSON dentro de string (double encoding)
+                cleaned_info = service_account_info.strip()
+                
+                # Tentar fazer decode se estiver como string escapada
+                if cleaned_info.startswith('"') and cleaned_info.endswith('"'):
+                    print("📋 Detectado JSON como string escapada, fazendo decode...")
+                    cleaned_info = json.loads(cleaned_info)
+                
                 # Tentar fazer parse do JSON
-                info = json.loads(service_account_info)
+                if isinstance(cleaned_info, str):
+                    info = json.loads(cleaned_info)
+                else:
+                    info = cleaned_info
+                
+                # Validar campos obrigatórios
+                required_fields = ['type', 'project_id', 'private_key', 'client_email']
+                missing_fields = [field for field in required_fields if field not in info]
+                if missing_fields:
+                    print(f"❌ ERRO: Campos obrigatórios faltando: {missing_fields}")
+                    return None
+                
                 creds = Credentials.from_service_account_info(info)
                 project_id = info.get('project_id')
-                print(f"✅ Credenciais carregadas da variável de ambiente (Projeto: {project_id})")
+                client_email = info.get('client_email', 'N/A')
+                print(f"✅ Credenciais carregadas da variável de ambiente")
+                print(f"   Projeto: {project_id}")
+                print(f"   Service Account: {client_email}")
             except json.JSONDecodeError as e:
-                print(f"❌ ERRO: JSON inválido na variável GOOGLE_SERVICE_ACCOUNT_INFO: {e}")
-                print(f"❌ Primeiros 100 caracteres: {service_account_info[:100]}")
+                print(f"❌ ERRO: JSON inválido na variável GOOGLE_SERVICE_ACCOUNT_INFO")
+                print(f"   Erro: {e}")
+                print(f"   Tamanho da string: {len(service_account_info)} caracteres")
+                print(f"   Primeiros 200 caracteres: {service_account_info[:200]}")
+                print(f"   Últimos 100 caracteres: {service_account_info[-100:]}")
+                return None
+            except KeyError as e:
+                print(f"❌ ERRO: Campo obrigatório faltando no JSON: {e}")
+                print(f"   Campos disponíveis: {list(info.keys()) if 'info' in locals() else 'N/A'}")
                 return None
             except Exception as e:
                 print(f"❌ ERRO ao processar credenciais da variável: {e}")
@@ -124,8 +154,27 @@ def salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name='romaneios-separacao', 
             print("❌ ERRO: Não foi possível criar cliente GCS")
             return None
         
-        # Obter bucket
-        bucket = client.bucket(bucket_name)
+        # Verificar se bucket existe e temos acesso
+        try:
+            bucket = client.bucket(bucket_name)
+            # Tentar acessar metadados do bucket para verificar permissões
+            print(f"🔍 Verificando acesso ao bucket: {bucket_name}")
+            bucket.reload()
+            print(f"✅ Bucket encontrado e acessível: {bucket_name}")
+        except Exception as bucket_error:
+            error_msg = str(bucket_error).lower()
+            if '404' in error_msg or 'not found' in error_msg:
+                print(f"❌ ERRO: Bucket '{bucket_name}' não encontrado!")
+                print(f"   Verifique se o bucket existe no projeto")
+            elif '403' in error_msg or 'permission denied' in error_msg or 'forbidden' in error_msg:
+                print(f"❌ ERRO: Sem permissão para acessar o bucket '{bucket_name}'!")
+                print(f"   Verifique as permissões da service account no bucket")
+                print(f"   Permissões necessárias: Storage Object Creator, Storage Object Viewer")
+            else:
+                print(f"❌ ERRO ao acessar bucket: {bucket_error}")
+            import traceback
+            traceback.print_exc()
+            return None
         
         # Nome do arquivo
         if is_reprint:
@@ -140,12 +189,27 @@ def salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name='romaneios-separacao', 
         print(f"📤 Fazendo upload de {len(pdf_content)} bytes para {filename}...")
         try:
             blob.upload_from_string(pdf_content, content_type='application/pdf')
+            
+            # Verificar se o upload foi bem-sucedido
+            if not blob.exists():
+                print(f"⚠️ ATENÇÃO: Upload completado mas arquivo não encontrado no bucket")
+                return None
+            
             gcs_path = f"gs://{bucket_name}/{filename}"
+            file_size = blob.size
             print(f"✅ === SUCESSO: PDF salvo no Cloud Storage ===")
             print(f"✅ Caminho: {gcs_path}")
+            print(f"✅ Tamanho confirmado: {file_size} bytes")
             return gcs_path
         except Exception as upload_error:
-            print(f"❌ ERRO durante upload: {upload_error}")
+            error_msg = str(upload_error).lower()
+            if '403' in error_msg or 'permission denied' in error_msg or 'forbidden' in error_msg:
+                print(f"❌ ERRO: Sem permissão para fazer upload no bucket!")
+                print(f"   Verifique se a service account tem permissão 'Storage Object Creator'")
+            elif '404' in error_msg or 'not found' in error_msg:
+                print(f"❌ ERRO: Bucket não encontrado durante upload")
+            else:
+                print(f"❌ ERRO durante upload: {upload_error}")
             import traceback
             traceback.print_exc()
             return None

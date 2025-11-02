@@ -124,3 +124,59 @@ Verifique se o bucket `romaneios-separacao` existe:
 
 Se ainda não funcionar após seguir estes passos, verifique as permissões da Service Account no bucket!
 
+---
+
+## 🔧 MELHORIAS RECENTES (Revisão do Código)
+
+### Arquivo: `salvar_pdf_gcs.py`
+
+#### 1. Tratamento Melhorado de JSON
+- ✅ **Detecção de JSON como string escapada** (double encoding)
+- ✅ **Validação de campos obrigatórios** antes de criar credenciais
+- ✅ **Logs detalhados** em caso de erro de parsing JSON
+- ✅ **Mensagens de erro mais claras** indicando o problema específico
+
+#### 2. Validação de Acesso ao Bucket
+- ✅ **Verificação prévia** se o bucket existe e é acessível
+- ✅ **Mensagens de erro específicas** para:
+  - Bucket não encontrado (404)
+  - Sem permissão (403)
+  - Outros erros
+- ✅ **Sugestões de correção** baseadas no tipo de erro
+
+#### 3. Verificação de Upload
+- ✅ **Confirmação** que o arquivo foi realmente salvo após upload
+- ✅ **Validação do tamanho** do arquivo salvo
+- ✅ **Mensagens de erro específicas** durante upload
+
+#### 4. Logs Detalhados
+- ✅ Logs mostram **exatamente onde o processo falha**
+- ✅ Informações sobre **ambiente detectado** (Cloud Run vs Local)
+- ✅ Detalhes sobre **variáveis de ambiente**
+- ✅ Informações da **service account usada**
+
+### Arquivo: `testar_gcs_permissoes.py`
+- ✅ **Melhorada validação de acesso ao bucket**
+- ✅ **Mensagens de erro mais específicas**
+- ✅ **Testa permissões de leitura e escrita**
+
+### Novo Arquivo: `DIAGNOSTICO_SALVAMENTO_PDF.md`
+- ✅ **Guia completo de diagnóstico**
+- ✅ **Exemplos de logs de sucesso e erro**
+- ✅ **Checklist passo a passo**
+- ✅ **Soluções para problemas comuns**
+
+## ⚠️ IMPORTANTE
+
+**O layout do PDF NÃO foi alterado** - As melhorias foram apenas em:
+- Tratamento de erros
+- Validações
+- Logs de debug
+- Mensagens de erro mais claras
+
+O código de geração de PDF (`pdf_cloud_generator.py`, `pdf_browser_generator.py`) **não foi alterado**.
+
+## 📋 Próximos Passos para Diagnóstico
+
+Se ainda não estiver funcionando, consulte o arquivo **`DIAGNOSTICO_SALVAMENTO_PDF.md`** para um guia completo de diagnóstico detalhado.
+

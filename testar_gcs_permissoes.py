@@ -59,12 +59,29 @@ def testar_gcs():
     try:
         bucket = client.bucket(gcs_bucket)
         
-        # Verificar se o bucket existe
-        if bucket.exists():
+        # Tentar acessar metadados do bucket (melhor método)
+        try:
+            bucket.reload()
             print(f"OK: Bucket '{gcs_bucket}' existe e e acessivel!")
-        else:
-            print(f"ERRO: Bucket '{gcs_bucket}' nao existe ou nao e acessivel")
-            return False
+            print(f"   Localizacao: {bucket.location if hasattr(bucket, 'location') else 'N/A'}")
+        except Exception as reload_error:
+            # Fallback: tentar exists()
+            error_msg = str(reload_error).lower()
+            if '404' in error_msg or 'not found' in error_msg:
+                print(f"ERRO: Bucket '{gcs_bucket}' nao encontrado!")
+                print(f"   Verifique se o bucket existe no projeto")
+                return False
+            elif '403' in error_msg or 'permission denied' in error_msg or 'forbidden' in error_msg:
+                print(f"ERRO: Sem permissao para acessar bucket '{gcs_bucket}'!")
+                print(f"   Verifique as permissoes da service account")
+                return False
+            else:
+                # Tentar método exists() como fallback
+                if bucket.exists():
+                    print(f"OK: Bucket '{gcs_bucket}' existe e e acessivel!")
+                else:
+                    print(f"ERRO: Bucket '{gcs_bucket}' nao existe ou nao e acessivel")
+                    return False
     except Exception as e:
         print(f"ERRO ao acessar bucket: {e}")
         import traceback

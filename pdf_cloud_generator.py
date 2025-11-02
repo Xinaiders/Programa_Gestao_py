@@ -37,7 +37,7 @@ def salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint
         else:
             # Criar pasta se não existir
             os.makedirs(pasta_destino, exist_ok=True)
-        filepath = os.path.join(pasta_destino, filename)
+            filepath = os.path.join(pasta_destino, filename)
         
         # Validar filepath
         if not filepath:
