@@ -153,3 +153,4 @@ def testar_email_erro():
 - O sistema tenta enviar o e-mail mesmo se o log falhar
 - Se o envio de e-mail falhar, o erro ainda será logado normalmente
 
+

@@ -2051,6 +2051,17 @@ def enviar_email_erro(excecao, contexto=None):
         if contexto:
             contexto_info = '\n'.join([f"- {k}: {v}" for k, v in contexto.items()])
         
+        # Preparar data/hora
+        data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        
+        # Montar contexto adicional se existir
+        contexto_secao = ''
+        if contexto_info:
+            contexto_secao = ('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+                              '📝 CONTEXTO ADICIONAL\n'
+                              '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+                              f'{contexto_info}\n')
+        
         # Montar corpo do e-mail
         corpo_email = f"""
 ⚠️ ERRO DETECTADO NO SISTEMA DE GESTÃO DE ESTOQUE
@@ -2071,14 +2082,9 @@ Método HTTP: {metodo}
 IP do Cliente: {ip}
 Usuário: {usuario_info}
 User-Agent: {user_agent}
-Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+Data/Hora: {data_hora}
 
-{('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
-  '📝 CONTEXTO ADICIONAL\n'
-  '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
-  f'{contexto_info}\n') if contexto_info else ''}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{contexto_secao}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔧 TRACEBACK COMPLETO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
