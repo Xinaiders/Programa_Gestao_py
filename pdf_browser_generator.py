@@ -622,46 +622,77 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
                     print(f"✅ PDF gerado automaticamente: {filepath}")
                     
                     # SEMPRE salvar no Cloud Storage após gerar o PDF
+                    print(f"🔍 === INICIANDO SALVAMENTO NO CLOUD STORAGE ===")
+                    print(f"📄 Arquivo gerado: {filepath}")
+                    print(f"📏 Verificando tamanho do arquivo...")
+                    
                     try:
+                        # Verificar se arquivo existe e tem tamanho válido
+                        if not os.path.exists(filepath):
+                            print(f"❌ ERRO: Arquivo não existe: {filepath}")
+                            return {'success': True, 'message': 'PDF gerado mas arquivo não encontrado', 'file_path': filepath}
+                        
+                        file_size = os.path.getsize(filepath)
+                        if file_size == 0:
+                            print(f"❌ ERRO: Arquivo está vazio: {filepath}")
+                            return {'success': True, 'message': 'PDF gerado mas arquivo está vazio', 'file_path': filepath}
+                        
+                        print(f"✅ Arquivo existe e tem {file_size} bytes")
+                        
+                        # Importar função de salvamento
                         from salvar_pdf_gcs import salvar_pdf_gcs
-                        # 'os' já foi importado no topo do arquivo, não precisa importar novamente
                         
                         # Ler o PDF gerado
+                        print(f"📖 Lendo conteúdo do PDF...")
                         with open(filepath, 'rb') as f:
                             pdf_content = f.read()
                         
+                        print(f"📊 Conteúdo lido: {len(pdf_content)} bytes")
+                        
                         # Validar se é um PDF válido
-                        if pdf_content.startswith(b'%PDF'):
-                            bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
-                            print(f"☁️ Salvando PDF no Cloud Storage...")
-                            print(f"📦 Bucket: {bucket_name}")
-                            print(f"🆔 Romaneio ID: {romaneio_id}")
-                            
-                            gcs_path = salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name, is_reprint)
-                            
-                            if gcs_path:
-                                print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
-                                # NÃO deletar arquivo aqui - deixar app.py gerenciar
-                                # O app.py vai deletar depois de confirmar que salvou
-                                return {
-                                    'success': True, 
-                                    'message': 'PDF gerado e salvo no Cloud Storage', 
-                                    'file_path': filepath,
-                                    'gcs_path': gcs_path
-                                }
-                            else:
-                                print(f"⚠️ Aviso: PDF gerado mas não foi possível salvar no Cloud Storage")
-                                print(f"⚠️ Arquivo temporário mantido em: {filepath} para tentativa posterior")
-                                return {'success': True, 'message': 'PDF gerado (não salvo no Cloud Storage)', 'file_path': filepath}
+                        if not pdf_content.startswith(b'%PDF'):
+                            print(f"❌ ERRO: Arquivo não é um PDF válido (começa com: {pdf_content[:50]})")
+                            return {'success': True, 'message': 'PDF gerado mas conteúdo inválido', 'file_path': filepath}
+                        
+                        print(f"✅ PDF válido detectado")
+                        
+                        # Obter bucket name
+                        bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+                        print(f"☁️ === SALVANDO NO CLOUD STORAGE ===")
+                        print(f"📦 Bucket: {bucket_name}")
+                        print(f"🆔 Romaneio ID: {romaneio_id}")
+                        print(f"📤 Chamando salvar_pdf_gcs...")
+                        
+                        # Salvar no Cloud Storage
+                        gcs_path = salvar_pdf_gcs(pdf_content, romaneio_id, bucket_name, is_reprint)
+                        
+                        if gcs_path:
+                            print(f"✅ === SUCESSO: PDF SALVO NO CLOUD STORAGE ===")
+                            print(f"✅ Caminho: {gcs_path}")
+                            return {
+                                'success': True, 
+                                'message': 'PDF gerado e salvo no Cloud Storage', 
+                                'file_path': filepath,
+                                'gcs_path': gcs_path
+                            }
                         else:
-                            print(f"⚠️ Arquivo gerado não é um PDF válido")
-                            return {'success': True, 'message': 'PDF gerado e salvo automaticamente', 'file_path': filepath}
+                            print(f"❌ === FALHA: salvar_pdf_gcs retornou None ===")
+                            print(f"⚠️ Arquivo temporário mantido em: {filepath} para tentativa posterior")
+                            return {'success': True, 'message': 'PDF gerado (não salvo no Cloud Storage - retornou None)', 'file_path': filepath}
+                            
+                    except ImportError as import_error:
+                        print(f"❌ ERRO CRÍTICO: Não foi possível importar salvar_pdf_gcs: {import_error}")
+                        import traceback
+                        traceback.print_exc()
+                        return {'success': True, 'message': 'PDF gerado (erro ao importar função de salvamento)', 'file_path': filepath}
                     except Exception as gcs_error:
-                        print(f"⚠️ Erro ao salvar no Cloud Storage: {gcs_error}")
+                        print(f"❌ === ERRO AO SALVAR NO CLOUD STORAGE ===")
+                        print(f"❌ Tipo do erro: {type(gcs_error).__name__}")
+                        print(f"❌ Mensagem: {str(gcs_error)}")
                         import traceback
                         traceback.print_exc()
                         # Retornar sucesso mesmo se falhar o Cloud Storage (PDF foi gerado)
-                        return {'success': True, 'message': 'PDF gerado (erro ao salvar no Cloud Storage)', 'file_path': filepath}
+                        return {'success': True, 'message': f'PDF gerado (erro ao salvar: {str(gcs_error)})', 'file_path': filepath}
                 else:
                     error_msg = result.stderr.decode() if result.stderr else "Erro desconhecido"
                     print(f"⚠️ Erro ao gerar PDF: {error_msg}")

@@ -698,67 +698,50 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
                 # Usa a mesma função para ambos (mantém layout original)
                 resultado = pdf_function(html_content, romaneio_data, pasta_destino=None, is_reprint=False)
                 
-                # SEMPRE salvar APENAS no Cloud Storage (sem salvar local)
-                try:
-                    from salvar_pdf_gcs import salvar_pdf_gcs
-                    import os
-                    
-                    # Se o PDF foi gerado, tentar salvar no Cloud Storage
-                    if resultado.get('success'):
-                        # Se já tem gcs_path, já foi salvo
-                        if 'gcs_path' not in resultado or not resultado.get('gcs_path'):
-                            # Tentar ler o PDF do caminho local e salvar no Cloud Storage
+                # Verificar se já foi salvo no Cloud Storage pela função de geração
+                if resultado.get('success'):
+                    if resultado.get('gcs_path'):
+                        print(f"✅ PDF já foi salvo no Cloud Storage: {resultado['gcs_path']}")
+                    else:
+                        # Fallback: tentar salvar se não foi salvo pela função
+                        print("⚠️ PDF gerado mas não foi salvo no Cloud Storage. Tentando salvar agora...")
+                        try:
+                            from salvar_pdf_gcs import salvar_pdf_gcs
+                            
                             if 'file_path' in resultado and os.path.exists(resultado['file_path']):
                                 file_path = resultado['file_path']
                                 
-                                # Verificar se é realmente um PDF (não HTML)
                                 if file_path.lower().endswith('.pdf'):
-                                    print("☁️ Salvando PDF APENAS no Cloud Storage...")
-                                    print(f"📄 Arquivo temporário: {file_path}")
+                                    print(f"📄 Lendo PDF do arquivo temporário: {file_path}")
                                     
-                                    try:
-                                        with open(file_path, 'rb') as f:
-                                            pdf_content = f.read()
+                                    with open(file_path, 'rb') as f:
+                                        pdf_content = f.read()
+                                    
+                                    if pdf_content.startswith(b'%PDF'):
+                                        bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
+                                        gcs_path = salvar_pdf_gcs(pdf_content, romaneio_data.get('id_impressao'), bucket_name, is_reprint=False)
                                         
-                                        # Deletar arquivo local imediatamente após ler
-                                        try:
-                                            os.unlink(file_path)
-                                            print(f"🗑️ Arquivo temporário removido: {file_path}")
-                                        except:
-                                            pass
-                                        
-                                        # Verificar se o conteúdo é realmente um PDF (começa com %PDF)
-                                        if pdf_content.startswith(b'%PDF'):
-                                            bucket_name = os.environ.get('GCS_BUCKET_NAME', 'romaneios-separacao')
-                                            print(f"☁️ Salvando PDF APENAS no Cloud Storage...")
-                                            print(f"📦 Bucket: {bucket_name}")
-                                            print(f"🆔 Romaneio ID: {romaneio_data.get('id_impressao')}")
+                                        if gcs_path:
+                                            print(f"✅ PDF salvo no Cloud Storage (fallback): {gcs_path}")
+                                            resultado['gcs_path'] = gcs_path
+                                            resultado['message'] = 'PDF salvo no Cloud Storage'
                                             
-                                            gcs_path = salvar_pdf_gcs(pdf_content, romaneio_data.get('id_impressao'), bucket_name, is_reprint=False)
-                                            
-                                            if gcs_path:
-                                                print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
-                                                resultado['gcs_path'] = gcs_path
-                                                resultado['message'] = 'PDF salvo no Cloud Storage'
-                                            else:
-                                                print("❌ Falha ao salvar no Cloud Storage")
-                                                resultado['success'] = False
-                                                resultado['message'] = 'Erro ao salvar no Cloud Storage'
+                                            # Limpar arquivo temporário
+                                            try:
+                                                os.unlink(file_path)
+                                                print(f"🗑️ Arquivo temporário removido: {file_path}")
+                                            except:
+                                                pass
                                         else:
-                                            print(f"⚠️ Arquivo não é um PDF válido (começa com: {pdf_content[:20]})")
-                                            resultado['success'] = False
-                                    except Exception as e:
-                                        print(f"⚠️ Erro ao ler arquivo PDF: {e}")
-                                        import traceback
-                                        traceback.print_exc()
-                                        resultado['success'] = False
+                                            print("❌ Falha ao salvar no Cloud Storage (fallback)")
+                                    else:
+                                        print(f"⚠️ Arquivo não é um PDF válido")
                                 else:
                                     print(f"⚠️ Arquivo não é PDF (extensão: {file_path})")
-                                    resultado['success'] = False
-                except Exception as e:
-                    print(f"⚠️ Erro ao tentar salvar no Cloud Storage (continuando): {e}")
-                    import traceback
-                    traceback.print_exc()
+                        except Exception as e:
+                            print(f"⚠️ Erro no fallback de salvamento: {e}")
+                            import traceback
+                            traceback.print_exc()
                 
                 if resultado['success']:
                     pdf_generation_status[id_impressao] = {
