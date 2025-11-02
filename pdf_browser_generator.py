@@ -624,7 +624,7 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
                     # SEMPRE salvar no Cloud Storage após gerar o PDF
                     try:
                         from salvar_pdf_gcs import salvar_pdf_gcs
-                        import os
+                        # 'os' já foi importado no topo do arquivo, não precisa importar novamente
                         
                         # Ler o PDF gerado
                         with open(filepath, 'rb') as f:
