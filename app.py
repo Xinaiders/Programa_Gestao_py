@@ -628,18 +628,16 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
         import os
         import threading
         
-        # Detectar se está no Cloud Run (K_SERVICE) ou App Engine (GAE_APPLICATION)
-        is_cloud = os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')
+        # SEMPRE usar Chrome headless para manter layout idêntico (local e Cloud Run)
+        # O Chrome está instalado no Dockerfile do Cloud Run
+        from pdf_browser_generator import salvar_pdf_direto_html
+        pdf_function = salvar_pdf_direto_html
         
+        # Detectar ambiente apenas para logs
+        is_cloud = os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')
         if is_cloud:
-            # Google Cloud (Cloud Run ou App Engine) - usar xhtml2pdf para manter layout original
-            from pdf_cloud_generator import salvar_pdf_cloud
-            pdf_function = salvar_pdf_cloud
-            print(f"☁️ Ambiente Cloud detectado ({os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')}) - usando xhtml2pdf (layout original)")
+            print(f"☁️ Ambiente Cloud detectado ({os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')}) - usando Chrome headless (layout idêntico)")
         else:
-            # Desenvolvimento local - usar Chrome headless
-            from pdf_browser_generator import salvar_pdf_direto_html
-            pdf_function = salvar_pdf_direto_html
             print("💻 Ambiente local detectado - usando Chrome headless")
         
         # Preparar dados do romaneio
@@ -4291,15 +4289,14 @@ def reimprimir_romaneio(id_impressao):
         # Detectar se está no Cloud Run (K_SERVICE) ou App Engine (GAE_APPLICATION)
         is_cloud = os.getenv('K_SERVICE') or os.getenv('GAE_APPLICATION')
         
+        # SEMPRE usar Chrome headless para manter layout idêntico (local e Cloud Run)
+        from pdf_browser_generator import salvar_pdf_direto_html
+        resultado = salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_reprint=True)
+        
+        # Log apenas informativo
         if is_cloud:
-            # Google Cloud (Cloud Run ou App Engine) - usar ReportLab
-            from pdf_cloud_generator import salvar_pdf_cloud
-            resultado = salvar_pdf_cloud(html_content, romaneio_data, pasta_destino=None, is_reprint=True)
-            print(f"☁️ Ambiente Cloud detectado - usando ReportLab para reimpressão")
+            print(f"☁️ Ambiente Cloud detectado - usando Chrome headless para reimpressão (layout idêntico)")
         else:
-            # Desenvolvimento local - usar Chrome headless
-            from pdf_browser_generator import salvar_pdf_direto_html
-            resultado = salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_reprint=True)
             print("💻 Ambiente local detectado - usando Chrome headless para reimpressão")
         
         if not resultado['success']:

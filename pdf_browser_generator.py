@@ -4,8 +4,11 @@ Gerador de PDF usando o navegador - Layout 100% IDÊNTICO
 """
 
 import os
+import sys
 import subprocess
 import webbrowser
+import shutil
+import tempfile
 from datetime import datetime
 
 def gerar_pdf_browser_romaneio(romaneio_data, itens_data, is_reprint=False):
@@ -552,14 +555,27 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
             # Converter caminho para URL file://
             file_url = f"file:///{os.path.abspath(temp_html_path).replace(os.sep, '/')}"
             
-            # Caminhos comuns do Chrome/Edge no Windows
-            chrome_paths = [
-                r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-                r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-                r"C:\Users\{}\AppData\Local\Google\Chrome\Application\chrome.exe".format(os.getenv('USERNAME', '')),
-                r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-                r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
-            ]
+            # Caminhos comuns do Chrome/Edge no Windows e Linux
+            chrome_paths = []
+            
+            # Windows
+            if sys.platform == 'win32':
+                chrome_paths = [
+                    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                    r"C:\Users\{}\AppData\Local\Google\Chrome\Application\chrome.exe".format(os.getenv('USERNAME', '')),
+                    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+                    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+                ]
+            else:
+                # Linux (Cloud Run)
+                chrome_paths = [
+                    '/usr/bin/google-chrome',
+                    '/usr/bin/google-chrome-stable',
+                    '/usr/bin/chromium',
+                    '/usr/bin/chromium-browser',
+                    '/snap/bin/chromium'
+                ]
             
             # Encontrar Chrome/Edge instalado
             browser_path = None
@@ -569,8 +585,8 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
                     break
             
             if not browser_path:
-                # Tentar encontrar no PATH
-                for cmd in ['chrome', 'msedge', 'google-chrome']:
+                # Tentar encontrar no PATH (funciona em Windows e Linux)
+                for cmd in ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome', 'msedge']:
                     if shutil.which(cmd):
                         browser_path = cmd
                         break
@@ -579,11 +595,25 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
                 # Usar caminho absoluto para o PDF
                 abs_filepath = os.path.abspath(filepath)
                 
-                # Comando para gerar PDF
-                if 'msedge' in browser_path.lower():
-                    cmd = [browser_path, '--headless', '--disable-gpu', '--print-to-pdf=' + abs_filepath, file_url]
+                # Comando para gerar PDF (Linux precisa de flags adicionais)
+                if sys.platform == 'win32':
+                    # Windows
+                    if 'msedge' in browser_path.lower():
+                        cmd = [browser_path, '--headless', '--disable-gpu', '--print-to-pdf=' + abs_filepath, file_url]
+                    else:
+                        cmd = [browser_path, '--headless', '--disable-gpu', '--print-to-pdf=' + abs_filepath, file_url]
                 else:
-                    cmd = [browser_path, '--headless', '--disable-gpu', '--print-to-pdf=' + abs_filepath, file_url]
+                    # Linux (Cloud Run)
+                    cmd = [
+                        browser_path,
+                        '--headless',
+                        '--disable-gpu',
+                        '--no-sandbox',  # Necessário para rodar como root no Docker
+                        '--disable-dev-shm-usage',  # Evita problemas de memória compartilhada
+                        '--disable-software-rasterizer',
+                        '--print-to-pdf=' + abs_filepath,
+                        file_url
+                    ]
                 
                 print(f"🔄 Gerando PDF com: {browser_path}")
                 result = subprocess.run(cmd, capture_output=True, timeout=30)
