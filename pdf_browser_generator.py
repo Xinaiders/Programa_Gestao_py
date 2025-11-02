@@ -641,12 +641,8 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
                             
                             if gcs_path:
                                 print(f"✅ PDF salvo no Cloud Storage: {gcs_path}")
-                                # Deletar arquivo temporário após salvar no Cloud Storage
-                                try:
-                                    os.unlink(filepath)
-                                    print(f"🗑️ Arquivo temporário removido: {filepath}")
-                                except:
-                                    pass
+                                # NÃO deletar arquivo aqui - deixar app.py gerenciar
+                                # O app.py vai deletar depois de confirmar que salvou
                                 return {
                                     'success': True, 
                                     'message': 'PDF gerado e salvo no Cloud Storage', 
@@ -655,6 +651,7 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
                                 }
                             else:
                                 print(f"⚠️ Aviso: PDF gerado mas não foi possível salvar no Cloud Storage")
+                                print(f"⚠️ Arquivo temporário mantido em: {filepath} para tentativa posterior")
                                 return {'success': True, 'message': 'PDF gerado (não salvo no Cloud Storage)', 'file_path': filepath}
                         else:
                             print(f"⚠️ Arquivo gerado não é um PDF válido")
