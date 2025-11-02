@@ -4,7 +4,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import os
 import math
 import pandas as pd
@@ -1972,115 +1972,205 @@ def index():
     try:
         print("🚀 Iniciando carregamento do dashboard...")
         
-        # Obter dados das solicitações do Google Sheets
+        # Obter dados das solicitações do Google Sheets usando a MESMA função de processamento
         print("📊 Buscando dados das solicitações...")
-        solicitacoes_data = get_google_sheets_data()
+        df = get_google_sheets_data()
         
-        if solicitacoes_data is None:
-            print("❌ Erro: solicitacoes_data é None")
+        if df is None or df.empty:
+            print("❌ Erro: DataFrame é None ou vazio")
             raise Exception("Não foi possível obter dados das solicitações")
         
-        if isinstance(solicitacoes_data, pd.DataFrame):
-            print(f"✅ DataFrame obtido com {len(solicitacoes_data)} linhas")
-            print(f"📋 Colunas disponíveis: {list(solicitacoes_data.columns)}")
-            
-            # Converter DataFrame para lista de dicionários
-            solicitacoes_data = solicitacoes_data.to_dict('records')
-            print(f"🔄 Convertido para {len(solicitacoes_data)} registros")
-        else:
-            print(f"✅ Lista obtida com {len(solicitacoes_data)} registros")
+        print(f"✅ DataFrame obtido com {len(df)} linhas")
+        print(f"📋 Colunas disponíveis: {list(df.columns)}")
         
-        # Contar por status com debug
-        total_solicitacoes = len(solicitacoes_data)
-        print(f"📊 Total de solicitações encontradas: {total_solicitacoes}")
+        # Usar a MESMA função de processamento que a rota /solicitacoes usa
+        solicitacoes_list_completa = process_google_sheets_data(df)
+        
+        # IMPORTANTE: Contar itens em falta ANTES de filtrar
+        itens_em_falta = 0
+        for s in solicitacoes_list_completa:
+            status = str(s.status).strip() if hasattr(s, 'status') and s.status else ''
+            status_lower = status.lower()
+            
+            # Verificar se status é "Falta" (com todas as variações possíveis)
+            if status == 'Falta' or status_lower == 'falta':
+                itens_em_falta += 1
+        
+        print(f"⚠️ Itens com status 'Falta': {itens_em_falta}")
+        
+        # Filtrar automaticamente as concluídas, excesso, faltas e finalizadas (igual à rota /solicitacoes)
+        solicitacoes_list = [s for s in solicitacoes_list_completa if s.status not in ['Concluida', 'Excesso', 'Falta', 'Finalizado']]
+        
+        total_solicitacoes = len(solicitacoes_list)
+        print(f"📊 Total de solicitações encontradas (após filtro): {total_solicitacoes}")
         
         if total_solicitacoes == 0:
-            print("⚠️ ATENÇÃO: Nenhuma solicitação encontrada!")
-            print("🔍 Verificando se há dados na planilha...")
-            # Tentar buscar dados brutos para debug
-            try:
-                sheet = get_google_sheets_connection()
-                if sheet:
-                    worksheet = sheet.get_worksheet(0)
-                    raw_data = worksheet.get_all_values()
-                    print(f"📋 Dados brutos da planilha: {len(raw_data)} linhas")
-                    if len(raw_data) > 0:
-                        print(f"📋 Primeira linha (cabeçalho): {raw_data[0]}")
-                        if len(raw_data) > 1:
-                            print(f"📋 Segunda linha (primeiro dado): {raw_data[1]}")
-            except Exception as debug_e:
-                print(f"❌ Erro no debug: {debug_e}")
+            print("⚠️ ATENÇÃO: Nenhuma solicitação encontrada após filtro!")
         
-        # Detectar status de forma mais robusta
+        # Detectar status de forma mais robusta (usando os objetos processados)
+        # IMPORTANTE: Contar tanto quantidade de solicitações quanto quantidade de itens
         solicitacoes_abertas = 0
+        itens_abertas = 0
+        solicitacoes_parciais = 0
+        itens_parciais = 0
         solicitacoes_em_separacao = 0
+        itens_em_separacao = 0
         solicitacoes_concluidas = 0
+        itens_concluidas = 0
         
-        for i, s in enumerate(solicitacoes_data):
-            status = str(s.get('status', '')).lower().strip()
-            if i < 3:  # Log apenas os primeiros 3 para não poluir
-                print(f"🔍 Registro {i+1} - Status: '{status}'")
+        for i, s in enumerate(solicitacoes_list):
+            status = str(s.status).strip() if hasattr(s, 'status') and s.status else ''
+            status_lower = status.lower()
+            quantidade = int(s.quantidade) if hasattr(s, 'quantidade') and s.quantidade else 0
             
-            if status in ['aberta', 'aberto', 'pendente', 'nova', '']:
+            if i < 3:  # Log apenas os primeiros 3 para não poluir
+                print(f"🔍 Registro {i+1} - Status: '{status}' (original), Qtd: {quantidade}")
+            
+            # Separar status "Aberto" de "Parcial"
+            if status_lower in ['aberta', 'aberto', 'pendente', 'nova'] or status == '':
                 solicitacoes_abertas += 1
-            elif status in ['em separação', 'em_separacao', 'em separacao', 'separando', 'parcial']:
+                itens_abertas += quantidade
+            elif status_lower in ['parcial']:
+                solicitacoes_parciais += 1
+                itens_parciais += quantidade
+                if i < 3:
+                    print(f"   ✅ Contada como 'Parcial'")
+            elif status == 'Em Separação' or status_lower in ['em separação', 'em_separacao', 'em separacao', 'separando']:
                 solicitacoes_em_separacao += 1
-            elif status in ['concluida', 'concluído', 'concluido', 'finalizada', 'entregue', 'concluída']:
-                solicitacoes_concluidas += 1
+                itens_em_separacao += quantidade
+                if i < 3:
+                    print(f"   ✅ Contada como 'Em Separação'")
+            # Não contar concluídas aqui porque elas são filtradas (não aparecem em solicitacoes_list)
         
-        print(f"📈 Contagem por status - Abertas: {solicitacoes_abertas}, Em Separação: {solicitacoes_em_separacao}, Concluídas: {solicitacoes_concluidas}")
+        # Contar concluídas e excesso na lista COMPLETA (antes do filtro)
+        for s in solicitacoes_list_completa:
+            status = str(s.status).strip() if hasattr(s, 'status') and s.status else ''
+            status_lower = status.lower()
+            quantidade = int(s.quantidade) if hasattr(s, 'quantidade') and s.quantidade else 0
+            
+            # IMPORTANTE: "Finalizado" também é considerado concluído para cálculo da taxa
+            if status_lower in ['concluida', 'concluído', 'concluido', 'finalizada', 'finalizado', 'entregue', 'concluída', 'excesso']:
+                solicitacoes_concluidas += 1
+                itens_concluidas += quantidade
+        
+        print(f"📈 Contagem por status:")
+        print(f"   Abertas: {solicitacoes_abertas} solicitações ({itens_abertas} itens)")
+        print(f"   Parciais: {solicitacoes_parciais} solicitações ({itens_parciais} itens)")
+        print(f"   Em Separação: {solicitacoes_em_separacao} solicitações ({itens_em_separacao} itens)")
+        print(f"   Concluídas: {solicitacoes_concluidas} solicitações ({itens_concluidas} itens)")
         
         # Obter dados da matriz
         matriz_data = get_matriz_data_from_sheets()
         total_produtos = len(matriz_data) if matriz_data else 0
         
         # Calcular solicitações de hoje (data atual)
-        hoje = datetime.now().strftime('%d/%m/%Y')
+        hoje_obj = datetime.now().date()  # Data de hoje sem hora
+        hoje_str = hoje_obj.strftime('%d/%m/%Y')
         solicitacoes_hoje = 0
         total_itens_hoje = 0
         
-        for s in solicitacoes_data:
-            data_solicitacao = s.get('data', '')
-            if data_solicitacao:
-                try:
-                    if isinstance(data_solicitacao, str):
-                        # Tentar diferentes formatos
-                        if '/' in data_solicitacao:
-                            # Formato DD/MM/YYYY ou DD/MM/YYYY HH:MM
-                            data_parte = data_solicitacao.split(' ')[0]  # Remove hora se existir
-                            if data_parte == hoje:
-                                solicitacoes_hoje += 1
-                                quantidade = int(s.get('quantidade', 0))
-                                total_itens_hoje += quantidade
-                        elif '-' in data_solicitacao:
-                            # Formato YYYY-MM-DD
-                            data_obj = datetime.strptime(data_solicitacao.split(' ')[0], '%Y-%m-%d')
-                            if data_obj.strftime('%d/%m/%Y') == hoje:
-                                solicitacoes_hoje += 1
-                                quantidade = int(s.get('quantidade', 0))
-                                total_itens_hoje += quantidade
-                except:
-                    continue
+        print(f"📅 Buscando solicitações de hoje: {hoje_str} (tipo: {type(hoje_obj)})")
+        print(f"📅 Total de solicitações a verificar: {len(solicitacoes_list)}")
         
-        # Calcular produtos em baixo estoque (estoque < 10)
-        produtos_baixo_estoque = 0
-        if matriz_data:
-            for produto in matriz_data:
-                try:
-                    estoque = int(produto.get('saldo_estoque', 0))
-                    if estoque < 10:
-                        produtos_baixo_estoque += 1
-                except:
+        for i, s in enumerate(solicitacoes_list):
+            try:
+                data_solicitacao = None
+                
+                # Tentar acessar a data de diferentes formas
+                if hasattr(s, 'data') and s.data is not None:
+                    data_solicitacao = s.data
+                    if i < 5:  # Debug primeiras 5
+                        print(f"   📅 Solicitação {i+1}: data encontrada - tipo: {type(data_solicitacao)}, valor: {data_solicitacao}")
+                elif hasattr(s, '__dict__') and 'data' in s.__dict__:
+                    data_solicitacao = s.__dict__['data']
+                    if i < 5:
+                        print(f"   📅 Solicitação {i+1}: data encontrada no __dict__ - tipo: {type(data_solicitacao)}, valor: {data_solicitacao}")
+                
+                if not data_solicitacao:
+                    if i < 5:
+                        print(f"   ⚠️ Solicitação {i+1}: SEM DATA")
                     continue
+                
+                # Converter para date para comparação
+                data_formatada = None
+                
+                # Se é Timestamp do pandas
+                if hasattr(data_solicitacao, 'date') and hasattr(data_solicitacao, 'to_pydatetime'):
+                    try:
+                        data_formatada = data_solicitacao.to_pydatetime().date()
+                    except:
+                        try:
+                            data_formatada = data_solicitacao.date()
+                        except:
+                            pass
+                # Se já é um objeto datetime
+                elif isinstance(data_solicitacao, datetime):
+                    data_formatada = data_solicitacao.date()
+                # Se é date
+                elif isinstance(data_solicitacao, date):
+                    data_formatada = data_solicitacao
+                # Se é string
+                elif isinstance(data_solicitacao, str) and data_solicitacao.strip():
+                    try:
+                        # Formato DD/MM/YYYY ou DD/MM/YYYY HH:MM
+                        if '/' in data_solicitacao:
+                            data_parte = data_solicitacao.split(' ')[0]  # Remove hora se existir
+                            try:
+                                data_formatada = datetime.strptime(data_parte, '%d/%m/%Y').date()
+                            except:
+                                # Tentar formato DD/MM/YY
+                                try:
+                                    data_formatada = datetime.strptime(data_parte, '%d/%m/%y').date()
+                                except:
+                                    pass
+                        # Formato YYYY-MM-DD
+                        elif '-' in data_solicitacao:
+                            data_parte = data_solicitacao.split(' ')[0]  # Remove hora se existir
+                            data_formatada = datetime.strptime(data_parte, '%Y-%m-%d').date()
+                    except Exception as parse_error:
+                        if i < 3:  # Debug apenas primeiras 3
+                            print(f"   ⚠️ Erro ao parsear data '{data_solicitacao}': {parse_error}")
+                        continue
+                
+                # Comparar datas
+                if data_formatada:
+                    if i < 5:  # Debug primeiras 5
+                        print(f"   📅 Solicitação {i+1}: data_formatada={data_formatada}, hoje_obj={hoje_obj}, são iguais? {data_formatada == hoje_obj}")
+                    
+                    if data_formatada == hoje_obj:
+                        solicitacoes_hoje += 1
+                        quantidade = int(s.quantidade) if hasattr(s, 'quantidade') and s.quantidade else 0
+                        total_itens_hoje += quantidade
+                        print(f"   ✅ Solicitação {i+1} é de hoje - Data: {data_formatada}, Qtd: {quantidade}")
+                elif i < 5:
+                    print(f"   ⚠️ Solicitação {i+1}: data_formatada é None (não foi possível converter)")
+                        
+            except Exception as e:
+                if i < 3:  # Debug apenas primeiras 3
+                    print(f"   ⚠️ Erro ao processar data da solicitação {i+1}: {e}")
+                    if hasattr(s, 'data'):
+                        print(f"      Tipo da data: {type(s.data)}, Valor: {s.data}")
+                continue
+        
+        print(f"📅 Solicitações de hoje: {solicitacoes_hoje} ({total_itens_hoje} itens)")
+        
+        # Calcular total de itens de todas as solicitações
+        total_itens = sum(int(s.quantidade) if hasattr(s, 'quantidade') and s.quantidade else 0 for s in solicitacoes_list_completa)
         
         stats = {
-            'total_solicitacoes': total_solicitacoes,
+            'total_solicitacoes': len(solicitacoes_list_completa),  # Total sem filtro
+            'total_itens': total_itens,
             'solicitacoes_abertas': solicitacoes_abertas,
+            'itens_abertas': itens_abertas,
+            'solicitacoes_parciais': solicitacoes_parciais,
+            'itens_parciais': itens_parciais,
             'solicitacoes_em_separacao': solicitacoes_em_separacao,
+            'itens_em_separacao': itens_em_separacao,
             'solicitacoes_concluidas': solicitacoes_concluidas,
+            'itens_concluidas': itens_concluidas,
             'total_produtos': total_produtos,
             'solicitacoes_hoje': solicitacoes_hoje,
-            'produtos_baixo_estoque': produtos_baixo_estoque,
+            'produtos_baixo_estoque': itens_em_falta,  # Agora conta itens com status "Falta"
             'total_itens_hoje': total_itens_hoje,
             'ultima_atualizacao': datetime.now().strftime('%d/%m/%Y %H:%M')
         }
@@ -2092,12 +2182,18 @@ def index():
         # Fallback com dados básicos
         stats = {
             'total_solicitacoes': 0,
+            'total_itens': 0,
             'solicitacoes_abertas': 0,
+            'itens_abertas': 0,
+            'solicitacoes_parciais': 0,
+            'itens_parciais': 0,
             'solicitacoes_em_separacao': 0,
+            'itens_em_separacao': 0,
             'solicitacoes_concluidas': 0,
+            'itens_concluidas': 0,
             'total_produtos': 0,
             'solicitacoes_hoje': 0,
-            'produtos_baixo_estoque': 0,
+            'produtos_baixo_estoque': 0,  # Agora representa itens em falta
             'total_itens_hoje': 0,
             'ultima_atualizacao': datetime.now().strftime('%d/%m/%Y %H:%M')
         }
@@ -2473,6 +2569,52 @@ def forcar_atualizacao():
 # Funcionalidade de criação de produtos removida
 
 # Função para processar dados da planilha
+def buscar_romaneios_por_id_solicitacao():
+    """Busca o mapeamento ID_SOLICITACAO -> ID_IMPRESSAO (romaneio)"""
+    try:
+        print("🔍 Iniciando busca de mapeamento de romaneios...")
+        sheet = get_google_sheets_connection()
+        if not sheet:
+            print("❌ Não foi possível conectar com Google Sheets")
+            return {}
+        
+        # Buscar dados da aba IMPRESSAO_ITENS
+        try:
+            itens_worksheet = sheet.worksheet("IMPRESSAO_ITENS")
+            all_itens = itens_worksheet.get_all_values()
+            
+            print(f"📋 Total de linhas na IMPRESSAO_ITENS: {len(all_itens)}")
+            if len(all_itens) > 0:
+                print(f"📋 Cabeçalho: {all_itens[0][:3] if len(all_itens[0]) >= 3 else all_itens[0]}")
+            
+            # Criar mapeamento: ID_SOLICITACAO -> ID_IMPRESSAO
+            # Coluna A (index 0) = ID_IMPRESSAO, Coluna B (index 1) = ID_SOLICITACAO
+            mapeamento = {}
+            linhas_processadas = 0
+            for i, row in enumerate(all_itens[1:], start=2):  # Pular cabeçalho
+                if len(row) >= 2:
+                    id_impressao = row[0].strip() if row[0] else ''
+                    id_solicitacao = row[1].strip() if row[1] else ''
+                    if id_impressao and id_solicitacao:
+                        mapeamento[id_solicitacao] = id_impressao
+                        linhas_processadas += 1
+                        # Debug: mostrar primeiras 3 linhas
+                        if linhas_processadas <= 3:
+                            print(f"   ✅ Linha {i}: ID_SOLICITACAO={id_solicitacao} -> ID_IMPRESSAO={id_impressao}")
+            
+            print(f"📋 Mapeamento carregado: {len(mapeamento)} solicitações com romaneio (de {len(all_itens)-1} linhas processadas)")
+            return mapeamento
+        except Exception as e:
+            print(f"⚠️ Erro ao buscar mapeamento de romaneios: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+    except Exception as e:
+        print(f"⚠️ Erro ao conectar com Google Sheets para buscar romaneios: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
 def process_google_sheets_data(df, matriz_data=None):
     """Processa dados da planilha do Google Sheets"""
     solicitacoes_list = []
@@ -2486,6 +2628,34 @@ def process_google_sheets_data(df, matriz_data=None):
             print(f"⚠️ Erro ao carregar matriz: {e}")
             matriz_data = {}
     
+    # Buscar mapeamento de romaneios (ID_SOLICITACAO -> ID_IMPRESSAO)
+    romaneios_map = buscar_romaneios_por_id_solicitacao()
+    print(f"📋 Mapeamento de romaneios obtido: {len(romaneios_map)} registros")
+    if len(romaneios_map) > 0:
+        print(f"   Primeiros 3 mapeamentos: {dict(list(romaneios_map.items())[:3])}")
+    
+    # Debug: Verificar colunas disponíveis
+    print(f"📋 Colunas disponíveis no DataFrame: {list(df.columns)}")
+    print(f"📋 Total de colunas: {len(df.columns)}")
+    
+    # Tentar encontrar a coluna ID_SOLICITACAO de diferentes formas
+    id_solicitacao_col_name = None
+    if 'ID_SOLICITACAO' in df.columns:
+        id_solicitacao_col_name = 'ID_SOLICITACAO'
+        print(f"✅ Coluna 'ID_SOLICITACAO' encontrada")
+    elif len(df.columns) > 15:
+        id_solicitacao_col_name = df.columns[15]
+        print(f"✅ Usando coluna índice 15: '{id_solicitacao_col_name}'")
+    else:
+        # Procurar por colunas que contenham 'id' e 'solicitacao' no nome
+        for col in df.columns:
+            if 'id' in col.lower() and 'solicitacao' in col.lower():
+                id_solicitacao_col_name = col
+                print(f"✅ Coluna encontrada por busca: '{col}'")
+                break
+        if not id_solicitacao_col_name:
+            print(f"⚠️ Coluna ID_SOLICITACAO não encontrada")
+    
     for index, row in df.iterrows():
         try:
             # Criar objeto Solicitacao a partir da planilha
@@ -2493,15 +2663,19 @@ def process_google_sheets_data(df, matriz_data=None):
             solicitacao.id = index + 1
             
             # Processar data com tratamento de erro
+            # IMPORTANTE: usar dayfirst=True para formato brasileiro DD/MM/YYYY
             try:
                 if 'Data' in row and pd.notna(row.get('Data', '')) and str(row.get('Data', '')).strip() != '':
-                    solicitacao.data = pd.to_datetime(row.get('Data', ''), errors='coerce')
+                    data_str = str(row.get('Data', '')).strip()
+                    # Usar dayfirst=True para formato brasileiro DD/MM/YYYY
+                    solicitacao.data = pd.to_datetime(data_str, errors='coerce', dayfirst=True)
                     # Se a conversão resultou em NaT, usar data atual
                     if pd.isna(solicitacao.data):
                         solicitacao.data = datetime.now()
                 else:
                     solicitacao.data = datetime.now()
-            except:
+            except Exception as data_error:
+                print(f"⚠️ Erro ao processar data na linha {index}: {data_error}")
                 solicitacao.data = datetime.now()
             
             # Processar campos de texto
@@ -2527,6 +2701,30 @@ def process_google_sheets_data(df, matriz_data=None):
                 solicitacao.qtd_separada = int(qtd_sep_str) if qtd_sep_str and qtd_sep_str != '' else 0
             except (ValueError, TypeError):
                 solicitacao.qtd_separada = 0
+            
+            # Processar ID_SOLICITACAO
+            id_solicitacao = ''
+            if id_solicitacao_col_name:
+                try:
+                    valor = row.get(id_solicitacao_col_name, '')
+                    if pd.notna(valor) and str(valor).strip():
+                        id_solicitacao = str(valor).strip()
+                except Exception as e:
+                    print(f"⚠️ Erro ao ler ID_SOLICITACAO na linha {index}: {e}")
+            
+            solicitacao.id_solicitacao = id_solicitacao if id_solicitacao else ''
+            
+            # Buscar romaneio associado (se houver ID_SOLICITACAO)
+            solicitacao.id_romaneio = None
+            if id_solicitacao and id_solicitacao.strip():
+                if id_solicitacao in romaneios_map:
+                    solicitacao.id_romaneio = romaneios_map[id_solicitacao]
+                    if index < 3:  # Debug apenas para as primeiras 3 linhas
+                        print(f"   ✅ Linha {index}: ID_SOLICITACAO='{id_solicitacao}' -> Romaneio={solicitacao.id_romaneio}")
+                elif index < 3:  # Debug: mostrar quando não encontrou
+                    print(f"   ⚠️ Linha {index}: ID_SOLICITACAO='{id_solicitacao}' não encontrado no mapeamento")
+            elif index < 3 and solicitacao.status == 'Em Separação':
+                print(f"   ⚠️ Linha {index}: Status 'Em Separação' mas sem ID_SOLICITACAO")
             
             # Processar Alta Demanda
             try:
@@ -2578,8 +2776,8 @@ def solicitacoes():
     # Processar dados da planilha
     solicitacoes_list = process_google_sheets_data(df)
     
-    # Filtrar automaticamente as concluídas, faltas e finalizadas
-    solicitacoes_list = [s for s in solicitacoes_list if s.status not in ['Concluida', 'Falta', 'Finalizado']]
+    # Filtrar automaticamente as concluídas, excesso, faltas e finalizadas
+    solicitacoes_list = [s for s in solicitacoes_list if s.status not in ['Concluida', 'Excesso', 'Falta', 'Finalizado']]
     
     # Aplicar busca por código se especificado (antes de ordenar - mais eficiente)
     if codigo_search:
@@ -3528,9 +3726,10 @@ def buscar_solicitacoes_ativas(limite=None, offset=0):
             return all_values[1:], header
         
         # Filtrar apenas status ativos - OTIMIZAÇÃO: usar list comprehension
+        # IMPORTANTE: "Parcial" NÃO é "Em Separação", são status diferentes
         solicitacoes_ativas = [
             row for row in all_values[1:] 
-            if len(row) > status_col and row[status_col].strip() in ['Aberto', 'Em Separação']
+            if len(row) > status_col and row[status_col].strip() in ['Aberto', 'Parcial', 'Em Separação']
         ]
         
         print(f"📊 Encontradas {len(solicitacoes_ativas)} solicitações ativas (de {len(all_values)-1} total)")
@@ -3557,29 +3756,43 @@ def processar_baixa_item(id_solicitacao, qtd_separada, observacoes, solicitacoes
         # OTIMIZAÇÃO: Usar dict para busca O(1) em vez de loop O(n)
         # Usar ID_SOLICITACAO como chave em vez da primeira coluna
         solicitacoes_dict = {}
-        print(f"🔍 Processando {len(solicitacoes_ativas)} solicitações ativas...")
+        print(f"🔍 Processando {len(solicitacoes_ativas)} solicitações da planilha...")
         for i, row in enumerate(solicitacoes_ativas):
-            print(f"   Linha {i}: {row[:3]}... (total: {len(row)} colunas)")
+            if i < 5:  # Debug apenas primeiras 5
+                print(f"   Linha {i}: {row[:3]}... (total: {len(row)} colunas)")
             if len(row) > id_solicitacao_col and row[id_solicitacao_col].strip():
-                id_solic = row[id_solicitacao_col]
-                # i é o índice na lista solicitacoes_ativas (0-based)
-                # Para converter para linha da planilha: i + 2 (pular cabeçalho + 1)
+                id_solic = row[id_solicitacao_col].strip()
+                # i é o índice na lista (0-based)
+                # Para converter para linha da planilha: i + 2 (pular cabeçalho [linha 1] + índice começa em 0)
                 linha_planilha = i + 2
                 solicitacoes_dict[id_solic] = (i, row, linha_planilha)
-                print(f"   ✅ Adicionado ID: {id_solic} (linha {linha_planilha})")
-            else:
+                if i < 5:  # Debug apenas primeiras 5
+                    print(f"   ✅ Adicionado ID: '{id_solic}' (linha planilha {linha_planilha})")
+            elif i < 5:
                 print(f"   ❌ Linha {i} não tem ID válido na coluna {id_solicitacao_col}")
         
         print(f"📊 Total de IDs encontrados: {len(solicitacoes_dict)}")
         
-        if id_solicitacao not in solicitacoes_dict:
-            print(f"❌ Solicitação {id_solicitacao} não encontrada nas ativas")
-            print(f"🔍 IDs disponíveis nas solicitações ativas: {list(solicitacoes_dict.keys())[:5]}...")
-            print(f"🔍 Total de solicitações ativas: {len(solicitacoes_dict)}")
+        # Normalizar ID para comparação (remover espaços)
+        id_solicitacao_clean = id_solicitacao.strip()
+        
+        if id_solicitacao_clean not in solicitacoes_dict:
+            print(f"❌ Solicitação '{id_solicitacao_clean}' não encontrada na planilha")
+            print(f"🔍 IDs disponíveis: {list(solicitacoes_dict.keys())[:10]}...")
+            print(f"🔍 Total de solicitações na planilha: {len(solicitacoes_dict)}")
+            print(f"🔍 Procurando ID exato: '{id_solicitacao_clean}'")
+            # Tentar encontrar variações do ID
+            encontrado_similar = False
+            for key in solicitacoes_dict.keys():
+                if id_solicitacao_clean.lower() in key.lower() or key.lower() in id_solicitacao_clean.lower():
+                    print(f"   ⚠️ ID similar encontrado: '{key}'")
+                    encontrado_similar = True
+            if not encontrado_similar:
+                print(f"   ❌ Nenhum ID similar encontrado")
             return None
         
-        i, row, linha_planilha = solicitacoes_dict[id_solicitacao]
-        print(f"✅ Processando baixa para {id_solicitacao}: {qtd_separada} unidades (linha {linha_planilha})")
+        i, row, linha_planilha = solicitacoes_dict[id_solicitacao_clean]
+        print(f"✅ Processando baixa para '{id_solicitacao_clean}': {qtd_separada} unidades (linha {linha_planilha})")
         
         # Encontrar colunas necessárias - OTIMIZAÇÃO: cache de índices
         col_indices = {}
@@ -3959,25 +4172,37 @@ def salvar_processamento_romaneio():
                     }
                     itens_processados.append(item_falta_data)
         
-        # 1. Buscar apenas solicitações ativas (otimizado)
-        solicitacoes_ativas, header = buscar_solicitacoes_ativas()
-        if solicitacoes_ativas is None:
+        # 1. Buscar TODAS as solicitações (não apenas ativas) para garantir atualização
+        # IMPORTANTE: Não filtrar por status aqui, pois pode haver itens com status já alterado
+        sheet = get_google_sheets_connection()
+        if not sheet:
             return jsonify({'success': False, 'message': 'Erro ao conectar com Google Sheets'})
         
-        print(f"📋 Solicitações ativas encontradas: {len(solicitacoes_ativas)}")
+        solicitacoes_worksheet = sheet.worksheet("Solicitações")
+        solicitacoes_values = solicitacoes_worksheet.get_all_values()
+        
+        if not solicitacoes_values or len(solicitacoes_values) < 2:
+            return jsonify({'success': False, 'message': 'Planilha de solicitações está vazia'})
+        
+        header = solicitacoes_values[0]
+        solicitacoes_ativas = solicitacoes_values[1:]  # TODAS as solicitações (sem filtro de status)
+        
+        print(f"📋 TOTAL de solicitações encontradas: {len(solicitacoes_ativas)}")
         print(f"📋 Header das solicitações: {header}")
         
-        # Debug: mostrar algumas linhas das solicitações ativas
+        # Debug: mostrar algumas linhas das solicitações
         if solicitacoes_ativas:
-            print(f"🔍 Primeiras 3 linhas das solicitações ativas:")
+            print(f"🔍 Primeiras 3 linhas das solicitações:")
             for i, row in enumerate(solicitacoes_ativas[:3]):
                 print(f"   Linha {i}: {row[:5]}... (total: {len(row)} colunas)")
                 if len(row) > 15:
                     print(f"      Coluna P (ID_SOLICITACAO): '{row[15]}'")
+                    if len(row) > 9:
+                        print(f"      Status: '{row[8] if len(row) > 8 else 'N/A'}'")
                 else:
                     print(f"      ❌ Linha {i} tem apenas {len(row)} colunas, coluna P não existe")
         else:
-            print("❌ Nenhuma solicitação ativa encontrada!")
+            print("❌ Nenhuma solicitação encontrada!")
         
         # 2. Buscar TODOS os itens do romaneio na IMPRESSAO_ITENS
         sheet = get_google_sheets_connection()
@@ -4075,8 +4300,25 @@ def salvar_processamento_romaneio():
             for atualizacao in atualizacoes:
                 print(f"   📍 {atualizacao['range']}: {atualizacao['values']}")
             
-            solicitacoes_worksheet.batch_update(atualizacoes)
-            print(f"✅ {len(atualizacoes)} atualizações realizadas na planilha Solicitações")
+            try:
+                resultado_batch = solicitacoes_worksheet.batch_update(atualizacoes)
+                print(f"✅ {len(atualizacoes)} atualizações realizadas na planilha Solicitações")
+                print(f"📊 Resposta do batch_update: {resultado_batch}")
+            except Exception as batch_error:
+                print(f"❌ ERRO AO EXECUTAR batch_update: {batch_error}")
+                import traceback
+                traceback.print_exc()
+                # Tentar atualizar uma célula de cada vez como fallback
+                print(f"🔄 Tentando atualizar uma célula por vez (fallback)...")
+                for atualizacao in atualizacoes:
+                    try:
+                        solicitacoes_worksheet.update(atualizacao['range'], atualizacao['values'])
+                        print(f"   ✅ Atualizado: {atualizacao['range']}")
+                    except Exception as cell_error:
+                        print(f"   ❌ Erro ao atualizar {atualizacao['range']}: {cell_error}")
+        else:
+            print("⚠️ NENHUMA ATUALIZAÇÃO PREPARADA! Verifique se os itens foram processados corretamente.")
+            print(f"   Total de itens atualizados recebidos: {len(itens_atualizados)}")
         
         # 5. Atualizar IMPRESSAO_ITENS
         usuario_atual = current_user.username if current_user.is_authenticated else 'Sistema'
@@ -5251,7 +5493,11 @@ def baixar_estoque_lote():
 @app.route('/logs')
 @login_required
 def logs():
-    """Página de visualização de logs"""
+    """Página de visualização de logs - APENAS ADMIN"""
+    if not current_user.is_admin:
+        flash('Apenas administradores podem acessar os logs', 'error')
+        return redirect(url_for('index'))
+    
     page = request.args.get('page', 1, type=int)
     per_page = 50
     
@@ -5316,7 +5562,11 @@ def logs():
 @app.route('/logs/export')
 @login_required
 def export_logs():
-    """Exportar logs para CSV"""
+    """Exportar logs para CSV - APENAS ADMIN"""
+    if not current_user.is_admin:
+        flash('Apenas administradores podem exportar logs', 'error')
+        return redirect(url_for('index'))
+    
     import csv
     import io
     

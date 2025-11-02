@@ -54,3 +54,7 @@ backup/
 # Arquivos de upload
 uploads/
 pdfs_temp/
+
+# Arquivo de criação de usuários com senhas (se necessário proteger)
+# Descomente a linha abaixo se quiser ignorar criar_usuarios.py no git
+# criar_usuarios.py

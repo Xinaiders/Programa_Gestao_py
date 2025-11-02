@@ -284,7 +284,7 @@
                         </div>
                         <div class="stat-card-body">
                             <div class="stat-number">{{ stats.total_solicitacoes }}</div>
-                            <div class="stat-description">Solicitações registradas no sistema</div>
+                            <div class="stat-description">{{ stats.total_itens }} itens registrados</div>
                             <i class="fas fa-clipboard-list stat-icon"></i>
                         </div>
                     </div>
@@ -293,11 +293,13 @@
                 <div class="col-xl-3 col-md-6">
                     <div class="stat-card card-warning">
                         <div class="stat-card-header">
-                            <div class="stat-label">Solicitações Abertas</div>
+                            <div class="stat-label">Solicitações Abertas / Parcial</div>
                         </div>
                         <div class="stat-card-body">
-                            <div class="stat-number">{{ stats.solicitacoes_abertas }}</div>
-                            <div class="stat-description">Aguardando processamento</div>
+                            <div class="stat-number">{{ stats.solicitacoes_abertas }} / {{ stats.solicitacoes_parciais }}</div>
+                            <div class="stat-description">
+                                {{ stats.itens_abertas }} aberto{% if stats.itens_abertas != 1 %}s{% endif %} / {{ stats.itens_parciais }} parcial{% if stats.itens_parciais != 1 %}s{% endif %}
+                            </div>
                             <i class="fas fa-folder-open stat-icon"></i>
                         </div>
                     </div>
@@ -310,7 +312,7 @@
                         </div>
                         <div class="stat-card-body">
                             <div class="stat-number">{{ stats.solicitacoes_em_separacao }}</div>
-                            <div class="stat-description">Sendo processadas</div>
+                            <div class="stat-description">{{ stats.itens_em_separacao }} itens sendo processados</div>
                             <i class="fas fa-boxes stat-icon"></i>
                         </div>
                     </div>
@@ -323,7 +325,7 @@
                         </div>
                         <div class="stat-card-body">
                             <div class="stat-number">{{ stats.solicitacoes_concluidas }}</div>
-                            <div class="stat-description">Finalizadas com sucesso</div>
+                            <div class="stat-description">{{ stats.itens_concluidas }} itens finalizados</div>
                             <i class="fas fa-check-double stat-icon"></i>
                         </div>
                     </div>
@@ -338,7 +340,7 @@
             </h2>
             <div class="row g-2">
                 <div class="col-xl-4 col-md-6">
-                    <div class="stat-card card-danger">
+                    <div class="stat-card card-success">
                         <div class="stat-card-header">
                             <div class="stat-label">Solicitações Hoje</div>
                         </div>
@@ -351,13 +353,13 @@
                 </div>
 
                 <div class="col-xl-4 col-md-6">
-                    <div class="stat-card card-warning">
+                    <div class="stat-card card-danger">
                         <div class="stat-card-header">
-                            <div class="stat-label">Produtos em Baixo Estoque</div>
+                            <div class="stat-label">Itens em Falta</div>
                         </div>
                         <div class="stat-card-body">
                             <div class="stat-number">{{ stats.produtos_baixo_estoque }}</div>
-                            <div class="stat-description">Estoque menor que 10 unidades</div>
+                            <div class="stat-description">Itens com status "Falta"</div>
                             <i class="fas fa-exclamation-triangle stat-icon"></i>
                         </div>
                     </div>
@@ -405,11 +407,13 @@
                                     <i class="fas fa-print me-2"></i>Controle de Romaneios
                                 </a>
                             </div>
+                            {% if current_user.is_admin %}
                             <div class="col-md-6">
                                 <a href="{{ url_for('logs') }}" class="btn btn-secondary action-btn">
                                     <i class="fas fa-file-alt me-2"></i>Ver Logs
                                 </a>
                             </div>
+                            {% endif %}
                             <div class="col-md-6">
                                 <button class="btn btn-success action-btn" onclick="location.reload()">
                                     <i class="fas fa-sync-alt me-2"></i>Atualizar Dashboard

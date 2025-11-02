@@ -23,7 +23,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('index') }}">
                 <i class="fas fa-warehouse me-2"></i>
-                Gestão de Estoque - TESTE CLOUD STORAGE
+                Gestão de Estoque
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -47,11 +47,13 @@
                             <i class="fas fa-clipboard-list me-1"></i>Controle de Romaneios
                         </a>
                     </li>
+                    {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('logs') }}">
                             <i class="fas fa-file-alt me-1"></i>Logs
                         </a>
                     </li>
+                    {% endif %}
                     {% if current_user.is_admin %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('listar_usuarios') }}">

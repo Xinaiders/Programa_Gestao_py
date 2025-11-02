@@ -4,39 +4,66 @@
 
 {% block styles %}
 <link href="{{ url_for('static', filename='css/solicitacoes.css') }}" rel="stylesheet">
+<style>
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.8rem 0;
+    margin-bottom: 1rem;
+    border-radius: 0 0 10px 10px;
+}
+
+.dashboard-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+    color: white;
+}
+
+.dashboard-subtitle {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    margin-bottom: 0;
+    color: white;
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header Simples -->
-    <div class="page-header">
-        <div class="d-flex align-items-center justify-content-between">
-            <div>
-                <h1 class="page-title">
-                    <i class="fas fa-clipboard-list me-3"></i>
-                    Solicitações Ativas
-                </h1>
-                <p class="page-subtitle">{{ solicitacoes.total }} registros encontrados</p>
+    <!-- Header Padronizado -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="dashboard-title">
+                        <i class="fas fa-clipboard-list me-3"></i>Solicitações Ativas
+                    </h1>
+                    <p class="dashboard-subtitle">{{ solicitacoes.total }} registros encontrados</p>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-sm btn-danger" 
+                                id="btnVerFaltas"
+                                data-bs-toggle="tooltip" data-bs-placement="top" title="Ver Itens em Falta">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Ver Faltas
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-light" 
+                                id="btnImprimir"
+                                data-bs-toggle="tooltip" data-bs-placement="top" title="Criar Romaneio de Separação">
+                            <i class="fas fa-clipboard-list me-1"></i>
+                            Criar Romaneio
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-light" 
+                                id="btnAtualizarTabela"
+                                data-bs-toggle="tooltip" data-bs-placement="top" title="Atualizar Solicitações e Matriz de Produtos">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            <span id="btnText">Atualizar Tabela</span>
+                        </button>
+                    </div>
+                </div>
             </div>
-                   <div class="d-flex gap-2">
-           <button type="button" class="btn btn-sm btn-danger" 
-                   id="btnVerFaltas"
-                   data-bs-toggle="tooltip" data-bs-placement="top" title="Ver Itens em Falta">
-               <i class="fas fa-exclamation-triangle me-1"></i>
-               Ver Faltas
-           </button>
-           <button type="button" class="btn btn-sm btn-outline-light" 
-                   id="btnImprimir"
-                   data-bs-toggle="tooltip" data-bs-placement="top" title="Criar Romaneio de Separação">
-               <i class="fas fa-clipboard-list me-1"></i>
-               Criar Romaneio
-           </button>
-                       <button type="button" class="btn btn-sm btn-outline-light" 
-                               id="btnAtualizarTabela"
-                               data-bs-toggle="tooltip" data-bs-placement="top" title="Atualizar Solicitações e Matriz de Produtos">
-                           <i class="fas fa-sync-alt me-1"></i>
-                           <span id="btnText">Atualizar Tabela</span>
-                       </button>
         </div>
     </div>
 </div>
@@ -152,13 +179,18 @@
                     {% for solicitacao in solicitacoes.items %}
                     <tr class="table-row {{ 'urgent-row' if solicitacao.status == 'Falta' else '' }} {{ 'table-info' if solicitacao.status == 'Em Separação' else '' }}" 
                         data-id="{{ solicitacao.id }}" 
-                        {% if solicitacao.status == 'Em Separação' %}title="Item já está com status 'Em Separação'"{% endif %}>
+                        {% if solicitacao.status == 'Em Separação' %}
+                            title="Item já está com status 'Em Separação'{% if solicitacao.id_romaneio %} - Romaneio: {{ solicitacao.id_romaneio }}{% endif %}"
+                        {% endif %}>
                         <td class="text-center">
                             <input type="checkbox" class="form-check-input solicitacao-checkbox" 
                                    value="{{ solicitacao.id }}" data-qtd="{{ solicitacao.quantidade }}" 
                                    data-separada="{{ solicitacao.qtd_separada }}"
                                    data-status="{{ solicitacao.status }}"
-                                   {% if solicitacao.status == 'Em Separação' %}disabled title="Este item já está com status 'Em Separação'"{% endif %}>
+                                   {% if solicitacao.status == 'Em Separação' %}
+                                       disabled 
+                                       title="Este item já está com status 'Em Separação'{% if solicitacao.id_romaneio %} - Romaneio: {{ solicitacao.id_romaneio }}{% endif %}"
+                                   {% endif %}>
                         </td>
                         <td class="text-start">
                             <div class="date-cell">
@@ -201,6 +233,12 @@
                         </td>
                         <td class="text-center">
                             {% include 'components/status_badge.html' %}
+                            {% if solicitacao.status == 'Em Separação' and solicitacao.id_romaneio %}
+                                <br>
+                                <small class="text-muted" style="font-size: 0.75rem; display: block; margin-top: 4px;">
+                                    <i class="fas fa-file-pdf"></i> {{ solicitacao.id_romaneio }}
+                                </small>
+                            {% endif %}
                         </td>
                         <td class="text-center">
                             <span class="quantity-badge">{{ solicitacao.quantidade }}</span>

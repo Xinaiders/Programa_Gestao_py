@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /**
  * Configurar seleção de todos os checkboxes
+ * IMPORTANTE: Não seleciona itens com status "Em Separação" (que estão desabilitados)
  */
 function initSelectAll() {
     const selectAllCheckbox = document.getElementById('selectAll');
@@ -23,17 +24,27 @@ function initSelectAll() {
     
     if (!selectAllCheckbox || !checkboxes.length) return;
     
+    // Função para obter checkboxes selecionáveis (não desabilitados)
+    function getSelecionaveis() {
+        return Array.from(checkboxes).filter(checkbox => !checkbox.disabled);
+    }
+    
     selectAllCheckbox.addEventListener('change', function() {
-        checkboxes.forEach(checkbox => {
+        // Selecionar apenas os checkboxes que NÃO estão desabilitados
+        const selecionaveis = getSelecionaveis();
+        selecionaveis.forEach(checkbox => {
             checkbox.checked = this.checked;
         });
+        console.log(`✅ ${this.checked ? 'Selecionados' : 'Desselecionados'} ${selecionaveis.length} item(s) (itens com status "Em Separação" foram ignorados)`);
     });
     
     // Atualizar checkbox principal quando individuais mudarem
+    // Considerar apenas checkboxes selecionáveis
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function() {
-            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-            const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+            const selecionaveis = getSelecionaveis();
+            const allChecked = selecionaveis.length > 0 && selecionaveis.every(cb => cb.checked);
+            const someChecked = selecionaveis.some(cb => cb.checked);
             
             selectAllCheckbox.checked = allChecked;
             selectAllCheckbox.indeterminate = someChecked && !allChecked;

@@ -2,32 +2,59 @@
 
 {% block title %}Controle de Impressões{% endblock %}
 
+{% block styles %}
+<style>
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.8rem 0;
+    margin-bottom: 1rem;
+    border-radius: 0 0 10px 10px;
+}
+
+.dashboard-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+    color: white;
+}
+
+.dashboard-subtitle {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    margin-bottom: 0;
+    color: white;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0 text-primary">
-                        <i class="fas fa-clipboard-list me-2"></i>
-                        Controle de Romaneios
+    <!-- Header Padronizado -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="dashboard-title">
+                        <i class="fas fa-clipboard-list me-3"></i>Controle de Romaneios
                     </h1>
-                    <p class="text-muted mb-0">Gerencie todos os romaneios de separação do sistema</p>
+                    <p class="dashboard-subtitle">Gerencie todos os romaneios de separação do sistema</p>
                 </div>
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('solicitacoes') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-arrow-left me-1"></i>
-                        Voltar para Solicitações
-                    </a>
-                    <button type="button" class="btn btn-success" onclick="criarAbaRealizarBaixa()">
-                        <i class="fas fa-plus me-1"></i>
-                        Criar Aba "Realizar Baixa"
-                    </button>
-                    <button type="button" class="btn btn-primary" onclick="atualizarLista()">
-                        <i class="fas fa-sync-alt me-1"></i>
-                        Atualizar
-                    </button>
+                <div class="col-md-4">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{{ url_for('solicitacoes') }}" class="btn btn-sm btn-outline-light">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Voltar
+                        </a>
+                        <button type="button" class="btn btn-sm btn-success" onclick="criarAbaRealizarBaixa()">
+                            <i class="fas fa-plus me-1"></i>
+                            Criar Aba
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="atualizarLista()">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Atualizar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

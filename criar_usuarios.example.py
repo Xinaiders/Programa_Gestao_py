@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Script para criar usuários no sistema
-Execute: python criar_usuarios.py
+SCRIPT DE EXEMPLO - Copie para criar_usuarios.py e ajuste as senhas
 
-⚠️ SEGURANÇA: Este script lê senhas de variáveis de ambiente ou pede interativamente.
-As senhas padrão estão apenas no código como fallback para desenvolvimento local.
+⚠️ SEGURANÇA: 
+- NUNCA commite criar_usuarios.py com senhas reais no Git!
+- Use variáveis de ambiente em produção
+- Mantenha senhas padrão apenas para desenvolvimento local
 """
 
 import os
@@ -34,40 +35,11 @@ def obter_senha(usuario, senha_padrao, variavel_env):
 USUARIOS = [
     {
         'username': 'admin', 
-        'email': 'marcosvinicius.info@gmail.com', 
-        'password': obter_senha('admin', 'admin123', 'USUARIO_ADMIN_PASSWORD'),
+        'email': 'seu-email@gmail.com', 
+        'password': obter_senha('admin', 'ALTERE_A_SENHA_AQUI', 'USUARIO_ADMIN_PASSWORD'),
         'is_admin': True
     },
-    {
-        'username': 'Marcos', 
-        'email': 'xinaiders@gmail.com', 
-        'password': obter_senha('Marcos', 'Marcos', 'USUARIO_MARCOS_PASSWORD'),
-        'is_admin': True
-    },
-    {
-        'username': 'Evandro', 
-        'email': 'estoque@lineflex.com.br', 
-        'password': obter_senha('Evandro', 'Evandro', 'USUARIO_EVANDRO_PASSWORD'),
-        'is_admin': False
-    },
-    {
-        'username': 'operador2', 
-        'email': 'operador2@estoque.com', 
-        'password': obter_senha('operador2', 'operador2', 'USUARIO_OPERADOR2_PASSWORD'),
-        'is_admin': False
-    },
-    {
-        'username': 'supervisor', 
-        'email': 'supervisor@estoque.com', 
-        'password': obter_senha('supervisor', 'supervisor', 'USUARIO_SUPERVISOR_PASSWORD'),
-        'is_admin': True
-    },
-    {
-        'username': 'gestor', 
-        'email': 'gestor@estoque.com', 
-        'password': obter_senha('gestor', 'gestor', 'USUARIO_GESTOR_PASSWORD'),
-        'is_admin': True
-    },
+    # Adicione outros usuários aqui...
 ]
 
 def criar_usuarios():
