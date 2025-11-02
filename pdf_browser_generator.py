@@ -616,7 +616,24 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
                     ]
                 
                 print(f"🔄 Gerando PDF com: {browser_path}")
-                result = subprocess.run(cmd, capture_output=True, timeout=30)
+                print(f"📋 Comando: {' '.join(cmd)}")
+                print(f"📄 Arquivo destino: {filepath}")
+                
+                result = subprocess.run(cmd, capture_output=True, timeout=60)
+                
+                print(f"📊 Resultado do Chrome:")
+                print(f"   Return code: {result.returncode}")
+                if result.stdout:
+                    print(f"   Stdout: {result.stdout.decode('utf-8', errors='ignore')[:200]}")
+                if result.stderr:
+                    print(f"   Stderr: {result.stderr.decode('utf-8', errors='ignore')[:200]}")
+                
+                # Verificar se arquivo foi criado
+                if os.path.exists(filepath):
+                    file_size = os.path.getsize(filepath)
+                    print(f"✅ Arquivo criado: {filepath} ({file_size} bytes)")
+                else:
+                    print(f"❌ Arquivo NÃO foi criado: {filepath}")
                 
                 if result.returncode == 0 and os.path.exists(filepath):
                     print(f"✅ PDF gerado automaticamente: {filepath}")
@@ -694,8 +711,15 @@ def salvar_pdf_direto_html(html_content, romaneio_data, pasta_destino=None, is_r
                         # Retornar sucesso mesmo se falhar o Cloud Storage (PDF foi gerado)
                         return {'success': True, 'message': f'PDF gerado (erro ao salvar: {str(gcs_error)})', 'file_path': filepath}
                 else:
-                    error_msg = result.stderr.decode() if result.stderr else "Erro desconhecido"
-                    print(f"⚠️ Erro ao gerar PDF: {error_msg}")
+                    # Chrome falhou - logar detalhes
+                    error_msg = result.stderr.decode('utf-8', errors='ignore') if result.stderr else "Erro desconhecido"
+                    stdout_msg = result.stdout.decode('utf-8', errors='ignore') if result.stdout else ""
+                    print(f"❌ === CHROME FALHOU AO GERAR PDF ===")
+                    print(f"❌ Return code: {result.returncode}")
+                    print(f"❌ Stderr: {error_msg[:500]}")
+                    if stdout_msg:
+                        print(f"❌ Stdout: {stdout_msg[:500]}")
+                    print(f"⚠️ Tentando usar fallback (HTML)...")
             
             # Se não conseguiu gerar automaticamente, salvar HTML para impressão manual
             print("⚠️ Não foi possível gerar PDF automaticamente, salvando HTML...")
