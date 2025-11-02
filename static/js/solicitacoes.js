@@ -481,16 +481,21 @@ async function verificarItensEmImpressaoPendente() {
                 totalBloqueados += data.itens_em_separacao.length;
                 
                 data.itens_em_separacao.forEach(id => {
-                    console.log(`🔒 Desabilitando checkbox para ID: ${id}`);
+                    console.log(`🔒 Verificando checkbox para ID: ${id}`);
                     const checkbox = document.querySelector(`input[value="${id}"]`);
                     if (checkbox) {
-                        checkbox.disabled = true;
-                        checkbox.title = 'Este item já está com status "Em Separação"';
-                        console.log(`✅ Checkbox ${id} desabilitado`);
+                        // Verificar se já está desabilitado (vindo do servidor)
+                        if (!checkbox.disabled) {
+                            checkbox.disabled = true;
+                            checkbox.title = 'Este item já está com status "Em Separação"';
+                            console.log(`✅ Checkbox ${id} desabilitado via JavaScript`);
+                        } else {
+                            console.log(`ℹ️ Checkbox ${id} já estava desabilitado (do servidor)`);
+                        }
                         
-                        // Adicionar classe visual diferente
+                        // Adicionar classe visual diferente (se ainda não tiver)
                         const row = checkbox.closest('tr');
-                        if (row) {
+                        if (row && !row.classList.contains('table-info')) {
                             row.classList.add('table-info');
                             row.title = 'Item já está com status "Em Separação"';
                             console.log(`✅ Linha destacada para ID: ${id}`);

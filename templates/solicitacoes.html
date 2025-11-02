@@ -150,12 +150,15 @@
                 </thead>
                 <tbody>
                     {% for solicitacao in solicitacoes.items %}
-                    <tr class="table-row {{ 'urgent-row' if solicitacao.status == 'Falta' else '' }}" data-id="{{ solicitacao.id }}">
+                    <tr class="table-row {{ 'urgent-row' if solicitacao.status == 'Falta' else '' }} {{ 'table-info' if solicitacao.status == 'Em Separação' else '' }}" 
+                        data-id="{{ solicitacao.id }}" 
+                        {% if solicitacao.status == 'Em Separação' %}title="Item já está com status 'Em Separação'"{% endif %}>
                         <td class="text-center">
                             <input type="checkbox" class="form-check-input solicitacao-checkbox" 
                                    value="{{ solicitacao.id }}" data-qtd="{{ solicitacao.quantidade }}" 
                                    data-separada="{{ solicitacao.qtd_separada }}"
-                                   data-status="{{ solicitacao.status }}">
+                                   data-status="{{ solicitacao.status }}"
+                                   {% if solicitacao.status == 'Em Separação' %}disabled title="Este item já está com status 'Em Separação'"{% endif %}>
                         </td>
                         <td class="text-start">
                             <div class="date-cell">
