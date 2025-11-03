@@ -246,6 +246,16 @@ body {
 /* Backgrounds no tema escuro */
 [data-theme="dark"] .bg-light {
     background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .bg-light * {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .bg-light .text-muted,
+[data-theme="dark"] .bg-light small {
+    color: var(--text-secondary) !important;
 }
 
 [data-theme="dark"] .bg-white {

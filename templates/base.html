@@ -121,8 +121,8 @@
                         <h5 class="modal-title text-white" id="modalUserMenuLabel" style="margin: 0; font-weight: 600; font-size: 1.25rem;">
                             <i class="fas fa-user-circle me-2"></i>{{ current_user.username }}
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar" style="background: white; border-radius: 50%; padding: 0; opacity: 1; width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.8); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                            <span style="color: #667eea; font-size: 1.5rem; font-weight: bold; line-height: 1;">×</span>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar" style="background: var(--bg-secondary); border-radius: 50%; padding: 0; opacity: 1; width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.8); box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            <span style="color: var(--text-primary); font-size: 1.5rem; font-weight: bold; line-height: 1;">×</span>
                         </button>
                     </div>
                     <p class="text-white mb-0" style="opacity: 0.9; font-size: 0.875rem;">
@@ -132,28 +132,28 @@
                 <div class="modal-body p-0">
                     <div style="padding: 1rem 0;">
                         {% if current_user.is_admin %}
-                        <a href="{{ url_for('testar_email_erro') }}" class="user-menu-item" style="display: flex; align-items: center; padding: 1rem 1.5rem; text-decoration: none; color: #333; transition: all 0.3s ease; border-bottom: 1px solid #f0f0f0;">
+                        <a href="{{ url_for('testar_email_erro') }}" class="user-menu-item" style="display: flex; align-items: center; padding: 1rem 1.5rem; text-decoration: none; color: var(--text-primary); transition: all 0.3s ease; border-bottom: 1px solid var(--border-color);">
                             <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
                                 <i class="fas fa-bug text-white"></i>
                             </div>
                             <div>
-                                <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">Testar E-mail Erro</div>
-                                <div style="font-size: 0.75rem; color: #666;">Simular erro para teste</div>
+                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">Testar E-mail Erro</div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary);">Simular erro para teste</div>
                             </div>
                             <i class="fas fa-chevron-right text-muted ms-auto"></i>
                         </a>
                         {% endif %}
-                        <a href="{{ url_for('alterar_senha') }}" class="user-menu-item" style="display: flex; align-items: center; padding: 1rem 1.5rem; text-decoration: none; color: #333; transition: all 0.3s ease; border-bottom: 1px solid #f0f0f0;">
+                        <a href="{{ url_for('alterar_senha') }}" class="user-menu-item" style="display: flex; align-items: center; padding: 1rem 1.5rem; text-decoration: none; color: var(--text-primary); transition: all 0.3s ease; border-bottom: 1px solid var(--border-color);">
                             <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
                                 <i class="fas fa-key text-white"></i>
                             </div>
                             <div>
-                                <div style="font-weight: 600; color: #333; margin-bottom: 0.25rem;">Alterar Senha</div>
-                                <div style="font-size: 0.85rem; color: #666;">Modificar minha senha</div>
+                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">Alterar Senha</div>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);">Modificar minha senha</div>
                             </div>
                             <i class="fas fa-chevron-right text-muted ms-auto"></i>
                         </a>
-                        <a href="{{ url_for('logout') }}" class="user-menu-item" style="display: flex; align-items: center; padding: 1rem 1.5rem; text-decoration: none; color: #dc3545; transition: all 0.3s ease; background: #fff5f5;">
+                        <a href="{{ url_for('logout') }}" class="user-menu-item" style="display: flex; align-items: center; padding: 1rem 1.5rem; text-decoration: none; color: #dc3545; transition: all 0.3s ease; background: rgba(220, 53, 69, 0.1);">
                             <div style="width: 45px; height: 45px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
                                 <i class="fas fa-sign-out-alt text-white"></i>
                             </div>
@@ -195,8 +195,8 @@
                     </div>
                     
                     <!-- Log de Atividades -->
-                    <div class="log-container bg-light p-3 rounded text-start" style="max-height: 150px; overflow-y: auto; font-size: 0.85rem;">
-                        <small class="text-muted" id="logAtividadesCache">
+                    <div class="log-container bg-light p-3 rounded text-start" style="max-height: 150px; overflow-y: auto; font-size: 0.85rem; background-color: var(--bg-secondary) !important; color: var(--text-primary) !important;">
+                        <small class="text-muted" id="logAtividadesCache" style="color: var(--text-secondary) !important;">
                             <div>⏳ Preparando atualização de cache...</div>
                         </small>
                     </div>
