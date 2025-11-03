@@ -986,3 +986,87 @@ body {
 .btn-warning:active {
     transform: translateY(0) !important;
 }
+
+/* Footer Supply Intel */
+.supplyintel-footer {
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    margin-top: auto;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.supplyintel-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.supplyintel-brand i {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.supplyintel-name {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+    letter-spacing: 0.5px;
+}
+
+.supplyintel-tagline {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-left: 0.5rem;
+}
+
+.supplyintel-copyright {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+[data-theme="dark"] .supplyintel-footer {
+    background-color: var(--bg-primary);
+    border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .supplyintel-brand i {
+    color: #58a6ff;
+}
+
+/* Responsividade do footer */
+@media (max-width: 768px) {
+    .supplyintel-footer {
+        padding: 1rem 0 !important;
+    }
+    
+    .supplyintel-brand {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.25rem;
+    }
+    
+    .supplyintel-tagline {
+        margin-left: 0;
+        font-size: 0.75rem;
+    }
+    
+    .supplyintel-copyright {
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Garantir que o body tenha altura mínima para empurrar o footer */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.container-fluid.mt-4 {
+    flex: 1;
+}
