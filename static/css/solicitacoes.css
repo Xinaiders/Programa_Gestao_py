@@ -73,6 +73,11 @@
     z-index: 10;
 }
 
+[data-theme="dark"] .table-modern thead {
+    background: #21262d;
+    border-bottom: 2px solid var(--border-color);
+}
+
 .table-modern th {
     font-weight: 600;
     padding: 1rem 0.75rem;
@@ -92,6 +97,10 @@
 
 .table-modern tbody tr:hover {
     background-color: rgba(79, 70, 229, 0.05);
+}
+
+[data-theme="dark"] .table-modern tbody tr:hover {
+    background-color: #21262d;
 }
 
 .table-modern tbody tr.urgent-row {
@@ -579,9 +588,21 @@ body.printing {
     border-left: 4px solid var(--warning-color) !important;
 }
 
+[data-theme="dark"] .table-warning {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+    border-left: 4px solid var(--warning-color) !important;
+    color: #fef3c7 !important;
+}
+
 .table-info {
     background-color: #dbeafe !important; /* Azul claro para Em Separação */
     border-left: 4px solid var(--info-color) !important;
+}
+
+[data-theme="dark"] .table-info {
+    background-color: rgba(6, 182, 212, 0.15) !important;
+    border-left: 4px solid var(--info-color) !important;
+    color: #b6e6f7 !important;
 }
 
 .table-warning:hover,
@@ -589,8 +610,16 @@ body.printing {
     background-color: #fde68a !important; /* Amarelo mais escuro no hover */
 }
 
+[data-theme="dark"] .table-warning:hover {
+    background-color: rgba(245, 158, 11, 0.25) !important;
+}
+
 .table-info:hover {
     background-color: #bfdbfe !important; /* Azul mais escuro no hover */
+}
+
+[data-theme="dark"] .table-info:hover {
+    background-color: rgba(6, 182, 212, 0.25) !important;
 }
 
 /* Checkbox desabilitado */
@@ -622,6 +651,13 @@ body.printing {
     pointer-events: none;
 }
 
+[data-theme="dark"] [title*="impressão pendente"]:hover::after,
+[data-theme="dark"] [title*="Em Separação"]:hover::after {
+    background: #30363d;
+    color: #f0f6fc;
+    border: 1px solid var(--border-color);
+}
+
 /* ===== FILTROS ===== */
 .filters-container {
     margin-bottom: 1.5rem;
@@ -637,6 +673,10 @@ body.printing {
     background-color: var(--light-bg);
     border-bottom: 1px solid var(--border-color);
     padding: 0.75rem 1rem;
+}
+
+[data-theme="dark"] .filters-container .card-header {
+    background-color: #21262d;
 }
 
 .filters-container .card-header h6 {

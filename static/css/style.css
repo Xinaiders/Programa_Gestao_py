@@ -35,16 +35,16 @@
     --card-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
 }
 
-/* Tema escuro */
+/* Tema escuro - Melhor contraste */
 [data-theme="dark"] {
-    --bg-primary: #1a1d29;
-    --bg-secondary: #252936;
-    --text-primary: #e4e6eb;
-    --text-secondary: #b0b3b8;
-    --border-color: #3a3f51;
-    --card-shadow: 0 0.15rem 1.75rem 0 rgba(0, 0, 0, 0.5);
-    --light-color: #1a1d29;
-    --dark-color: #e4e6eb;
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --text-primary: #f0f6fc;
+    --text-secondary: #c9d1d9;
+    --border-color: #30363d;
+    --card-shadow: 0 0.15rem 1.75rem 0 rgba(0, 0, 0, 0.7);
+    --light-color: #0d1117;
+    --dark-color: #f0f6fc;
 }
 
 body {
@@ -119,8 +119,16 @@ body {
     background-color: var(--bg-secondary);
 }
 
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: #1c2128;
+}
+
 .table-hover > tbody > tr:hover > td {
     background-color: var(--border-color);
+}
+
+[data-theme="dark"] .table-hover > tbody > tr:hover > td {
+    background-color: #21262d;
 }
 
 /* Badges personalizados */
@@ -154,18 +162,28 @@ body {
 /* Formulários */
 .form-control, .form-select {
     border-radius: 0.35rem;
-    border: 1px solid #d1d3e2;
+    border: 1px solid var(--border-color);
     font-size: 0.875rem;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 .form-control:focus, .form-select:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.form-control::placeholder, .form-select::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
 }
 
 .form-label {
     font-weight: 600;
-    color: var(--dark-color);
+    color: var(--text-primary);
     font-size: 0.875rem;
     margin-bottom: 0.5rem;
 }
@@ -182,6 +200,60 @@ body {
 [data-theme="dark"] .alert-light {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
+}
+
+[data-theme="dark"] .alert-success {
+    background-color: rgba(28, 200, 138, 0.2);
+    border-color: rgba(28, 200, 138, 0.5);
+    color: #9dffd6;
+}
+
+[data-theme="dark"] .alert-danger {
+    background-color: rgba(231, 74, 59, 0.2);
+    border-color: rgba(231, 74, 59, 0.5);
+    color: #ffa8a1;
+}
+
+[data-theme="dark"] .alert-warning {
+    background-color: rgba(246, 194, 62, 0.2);
+    border-color: rgba(246, 194, 62, 0.5);
+    color: #ffd54f;
+}
+
+[data-theme="dark"] .alert-info {
+    background-color: rgba(54, 185, 204, 0.2);
+    border-color: rgba(54, 185, 204, 0.5);
+    color: #7fd4e8;
+}
+
+/* Textos muted e secondary no tema escuro */
+[data-theme="dark"] .text-muted {
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .text-secondary {
+    color: #c9d1d9 !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: #f0f6fc !important;
+}
+
+[data-theme="dark"] .text-light {
+    color: #c9d1d9 !important;
+}
+
+/* Backgrounds no tema escuro */
+[data-theme="dark"] .bg-light {
+    background-color: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] .bg-white {
+    background-color: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] .bg-dark {
+    background-color: var(--bg-primary) !important;
 }
 
 /* Paginação */
@@ -799,10 +871,17 @@ body {
 
 [data-theme="dark"] .modal-header {
     border-bottom-color: var(--border-color);
+    background-color: #21262d;
 }
 
 [data-theme="dark"] .modal-footer {
     border-top-color: var(--border-color);
+    background-color: #21262d;
+}
+
+[data-theme="dark"] .modal-body {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 [data-theme="dark"] .dropdown-menu {
@@ -815,8 +894,64 @@ body {
 }
 
 [data-theme="dark"] .dropdown-item:hover {
-    background-color: var(--border-color);
+    background-color: #21262d;
     color: var(--text-primary);
+}
+
+/* Melhorar contraste de cards e elementos específicos */
+[data-theme="dark"] .card-body {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .card-title {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .card-text {
+    color: var(--text-secondary);
+}
+
+/* Links no tema escuro */
+[data-theme="dark"] a {
+    color: #58a6ff;
+}
+
+[data-theme="dark"] a:hover {
+    color: #79c0ff;
+}
+
+/* Small e small text */
+[data-theme="dark"] small {
+    color: var(--text-secondary);
+}
+
+/* Headings no tema escuro */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+    color: var(--text-primary);
+}
+
+/* Scrollbar personalizada para tema escuro */
+[data-theme="dark"] ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #484f58;
+    border-radius: 5px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #5a6268;
 }
 
 /* Container principal - SEM scroll horizontal */
