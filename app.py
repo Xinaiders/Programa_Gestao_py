@@ -684,31 +684,63 @@ def criar_impressao(usuario, solicitacoes_selecionadas, observacoes=""):
         # Preparar dados dos itens
         itens_data = []
         for solicitacao in solicitacoes_selecionadas:
+            # Garantir que locacao_matriz e media_mensal sejam extraídos corretamente
+            locacao = solicitacao.get('locacao_matriz', '1 E5 E03/F03')
+            media = solicitacao.get('media_mensal', 41)
+            saldo_estoque = solicitacao.get('saldo_estoque', 600)
+            
+            # Log de debug para verificar dados
+            codigo_item = solicitacao.get('codigo', '')
+            print(f"📋 Preparando item para impressão: Código={codigo_item}, Localização={locacao}, Média={media}, Saldo={saldo_estoque}")
+            
             item = {
                 'data': solicitacao.get('data', data_impressao).strftime('%d/%m/%Y') if hasattr(solicitacao.get('data'), 'strftime') else str(solicitacao.get('data', '')),
                 'solicitante': solicitacao.get('solicitante', ''),
-                'codigo': solicitacao.get('codigo', ''),
+                'codigo': codigo_item,
                 'descricao': solicitacao.get('descricao', ''),
                 'quantidade': solicitacao.get('quantidade', 0),
-                'alta_demanda': getattr(solicitacao, 'alta_demanda', False),
-                'locacao_matriz': solicitacao.get('locacao_matriz', '1 E5 E03/F03'),
-                'saldo_estoque': solicitacao.get('saldo_estoque', 600),
-                'media_mensal': solicitacao.get('media_mensal', 41),
+                'alta_demanda': getattr(solicitacao, 'alta_demanda', False) if hasattr(solicitacao, 'alta_demanda') else solicitacao.get('alta_demanda', False),
+                'locacao_matriz': locacao if locacao else '1 E5 E03/F03',
+                'saldo_estoque': saldo_estoque if saldo_estoque else 600,
+                'media_mensal': media if media else 41,
                 'qtd_pendente': solicitacao.get('quantidade', 0),
                 'qtd_separada': 0
             }
             itens_data.append(item)
+            print(f"✅ Item adicionado ao itens_data: Código={item['codigo']}, Localização={item['locacao_matriz']}, Média={item['media_mensal']}")
         
         # Recuperar tipo_romaneio do cache
         tipo_romaneio = 'Romaneio de Separação'
         if 'romaneio_info' in globals() and id_impressao in globals()['romaneio_info']:
             tipo_romaneio = globals()['romaneio_info'][id_impressao]
         
+        # Verificar se os dados estão corretos antes de renderizar
+        print(f"🔍 Verificando dados antes de renderizar HTML: {len(itens_data)} itens")
+        for idx, item in enumerate(itens_data[:3]):  # Verificar apenas os 3 primeiros para não poluir o log
+            print(f"   Item {idx+1}: Código={item.get('codigo')}, Localização={item.get('locacao_matriz')}, Média={item.get('media_mensal')}")
+        
         # Renderizar o template HTML (igual ao que aparece na tela)
         html_content = render_template('formulario_impressao.html', 
                                      id_impressao=id_impressao,
                                      solicitacoes=itens_data,
                                      tipo_romaneio=tipo_romaneio)
+        
+        # Verificar se os dados estão no HTML renderizado
+        if html_content:
+            # Verificar se pelo menos um item tem localização e média no HTML
+            primeiro_codigo = itens_data[0].get('codigo', '') if itens_data else ''
+            primeiro_locacao = itens_data[0].get('locacao_matriz', '') if itens_data else ''
+            primeiro_media = itens_data[0].get('media_mensal', '') if itens_data else ''
+            
+            if primeiro_codigo and primeiro_locacao in html_content:
+                print(f"✅ HTML renderizado contém localização para código {primeiro_codigo}: {primeiro_locacao}")
+            else:
+                print(f"⚠️ ATENÇÃO: Localização não encontrada no HTML para código {primeiro_codigo}")
+            
+            if primeiro_codigo and str(primeiro_media) in html_content:
+                print(f"✅ HTML renderizado contém média para código {primeiro_codigo}: {primeiro_media}")
+            else:
+                print(f"⚠️ ATENÇÃO: Média não encontrada no HTML para código {primeiro_codigo}")
         
         # OTIMIZAÇÃO: Salvar PDF em thread separada para não bloquear a resposta
         def gerar_pdf_async():
@@ -1839,9 +1871,12 @@ def get_matriz_data_from_sheets():
                 if not codigo:
                     continue
                 
+                # Normalizar código (remover espaços extras, manter original e criar versões normalizadas)
+                codigo_original = codigo
+                
                 # Criar objeto com dados da matriz
                 matriz_item = {
-                    'codigo': codigo,
+                    'codigo': codigo_original,
                     'descricao': str(row.get('DESCRICAO COMPLETA', '')).strip() if pd.notna(row.get('DESCRICAO COMPLETA', '')) else '',
                     'unidade': str(row.get('UNIDADE MEDIDA', '')).strip() if pd.notna(row.get('UNIDADE MEDIDA', '')) else '',
                     'locacao_matriz': str(row.get('LOCACAO', '')).strip() if pd.notna(row.get('LOCACAO', '')) else '',
@@ -1875,8 +1910,23 @@ def get_matriz_data_from_sheets():
                 except (ValueError, TypeError):
                     matriz_item['media_mensal'] = 0
                 
-                # Adicionar ao dicionário
-                matriz_data[codigo] = matriz_item
+                # Adicionar ao dicionário com múltiplas chaves para facilitar busca
+                # Adicionar com código original
+                matriz_data[codigo_original] = matriz_item
+                # Adicionar também com variações normalizadas para facilitar busca
+                codigo_upper = codigo_original.upper()
+                codigo_lower = codigo_original.lower()
+                codigo_sem_espacos = codigo_original.replace(' ', '')
+                codigo_sem_hifen = codigo_original.replace('-', '')
+                
+                if codigo_upper != codigo_original:
+                    matriz_data[codigo_upper] = matriz_item
+                if codigo_lower != codigo_original and codigo_lower != codigo_upper:
+                    matriz_data[codigo_lower] = matriz_item
+                if codigo_sem_espacos != codigo_original:
+                    matriz_data[codigo_sem_espacos] = matriz_item
+                if codigo_sem_hifen != codigo_original:
+                    matriz_data[codigo_sem_hifen] = matriz_item
                 
             except Exception as e:
                 print(f"❌ Erro ao processar linha {index + 2}: {e}")
@@ -3761,21 +3811,51 @@ def processar_romaneio(id_impressao):
             print(f"   Linha {i}: {row[:5]}...")
             if len(row) >= 10 and row[0] == id_impressao:
                 print(f"   ✅ Item encontrado: {row[4]} - {row[5]}")
+                # Extrair dados com validação e tratamento de erros
+                # Estrutura: A=ID_IMPRESSAO(0), B=ID_SOLICITACAO(1), C=DATA(2), D=SOLICITANTE(3), 
+                # E=CODIGO(4), F=DESCRICAO(5), G=UNIDADE(6), H=QUANTIDADE(7), 
+                # I=LOCACAO_MATRIZ(8), J=SALDO_ESTOQUE(9), K=MEDIA_MENSAL(10), L=ALTA_DEMANDA(11)
+                
+                # Processar localização (coluna I, índice 8)
+                locacao = row[8] if len(row) > 8 and row[8] else '1 E5 E03/F03'
+                
+                # Processar saldo estoque (coluna J, índice 9)
+                try:
+                    saldo_str = str(row[9]).strip() if len(row) > 9 else '0'
+                    saldo_estoque = int(float(saldo_str.replace(',', '.'))) if saldo_str and saldo_str != '' else 600
+                except (ValueError, TypeError):
+                    saldo_estoque = 600
+                
+                # Processar média mensal (coluna K, índice 10)
+                try:
+                    media_str = str(row[10]).strip() if len(row) > 10 else '0'
+                    media_mensal = int(float(media_str.replace(',', '.'))) if media_str and media_str != '' else 41
+                except (ValueError, TypeError):
+                    media_mensal = 41
+                
+                # Processar alta demanda (coluna L, índice 11)
+                alta_demanda = False
+                if len(row) > 11:
+                    alta_demanda_str = str(row[11]).strip().lower()
+                    alta_demanda = alta_demanda_str in ['sim', 's', 'yes', 'y', 'true', '1', 'verdadeiro']
+                
+                print(f"   📍 Dados extraídos: Localização={locacao}, Saldo={saldo_estoque}, Média={media_mensal}, Alta Demanda={alta_demanda}")
+                
                 item = {
-                    'id_solicitacao': row[1],
-                    'data': row[2],
-                    'solicitante': row[3],
-                    'codigo': row[4],
-                    'descricao': row[5],
-                    'quantidade': int(row[7]) if row[7].isdigit() else 0,  # Quantidade na posição 7
-                    'unidade': row[6],  # Unidade na posição 6
-                    'alta_demanda': row[10].lower() in ['sim', 's', 'yes', 'y', 'true', '1'] if len(row) > 10 else False,
-                    'locacao_matriz': row[8],
-                    'saldo_estoque': int(row[9]) if row[9].isdigit() else 0,
-                    'media_mensal': int(row[10]) if row[10].isdigit() else 0,
+                    'id_solicitacao': row[1] if len(row) > 1 else '',
+                    'data': row[2] if len(row) > 2 else '',
+                    'solicitante': row[3] if len(row) > 3 else '',
+                    'codigo': row[4] if len(row) > 4 else '',
+                    'descricao': row[5] if len(row) > 5 else '',
+                    'quantidade': int(float(row[7].replace(',', '.'))) if len(row) > 7 and row[7] and str(row[7]).strip() != '' else 0,
+                    'unidade': row[6] if len(row) > 6 else '',
+                    'alta_demanda': alta_demanda,
+                    'locacao_matriz': locacao,
+                    'saldo_estoque': saldo_estoque,
+                    'media_mensal': media_mensal,
                     'qtd_separada_atual': 0,
                     'observacoes_item': '',
-                    'status_item': 'Pendente' if len(row) <= 12 or row[12].lower() in ['false', '0', ''] else ('Processado' if row[12].lower() in ['true', '1', 'processado'] else row[12])  # STATUS_ITEM na posição 12
+                    'status_item': 'Pendente' if len(row) <= 12 or (len(row) > 12 and row[12].strip().lower() in ['false', '0', '']) else ('Processado' if len(row) > 12 and row[12].strip().lower() in ['true', '1', 'processado'] else (row[12] if len(row) > 12 else 'Pendente'))
                 }
                 itens_data.append(item)
         
@@ -4695,18 +4775,53 @@ def reimprimir_romaneio(id_impressao):
         
         itens_data = []
         for row in itens_values[1:]:  # Pular cabeçalho
-            if len(row) >= 10 and row[1] == id_impressao:
+            # Estrutura: A=ID_IMPRESSAO(0), B=ID_SOLICITACAO(1), C=DATA(2), D=SOLICITANTE(3), 
+            # E=CODIGO(4), F=DESCRICAO(5), G=UNIDADE(6), H=QUANTIDADE(7), 
+            # I=LOCACAO_MATRIZ(8), J=SALDO_ESTOQUE(9), K=MEDIA_MENSAL(10), L=ALTA_DEMANDA(11)
+            if len(row) >= 10 and row[0] == id_impressao:  # Verificar ID_IMPRESSAO na coluna A (índice 0)
+                # Processar localização (coluna I, índice 8)
+                locacao = row[8] if len(row) > 8 and row[8] else '1 E5 E03/F03'
+                
+                # Processar saldo estoque (coluna J, índice 9)
+                try:
+                    saldo_str = str(row[9]).strip() if len(row) > 9 else '0'
+                    saldo_estoque = int(float(saldo_str.replace(',', '.'))) if saldo_str and saldo_str != '' else 600
+                except (ValueError, TypeError):
+                    saldo_estoque = 600
+                
+                # Processar média mensal (coluna K, índice 10)
+                try:
+                    media_str = str(row[10]).strip() if len(row) > 10 else '0'
+                    media_mensal = int(float(media_str.replace(',', '.'))) if media_str and media_str != '' else 41
+                except (ValueError, TypeError):
+                    media_mensal = 41
+                
+                # Processar alta demanda (coluna L, índice 11)
+                alta_demanda = False
+                if len(row) > 11:
+                    alta_demanda_str = str(row[11]).strip().lower()
+                    alta_demanda = alta_demanda_str in ['sim', 's', 'yes', 'y', 'true', '1', 'verdadeiro']
+                
+                # Processar quantidade (coluna H, índice 7)
+                try:
+                    qtd_str = str(row[7]).strip() if len(row) > 7 else '0'
+                    quantidade = int(float(qtd_str.replace(',', '.'))) if qtd_str and qtd_str != '' else 0
+                except (ValueError, TypeError):
+                    quantidade = 0
+                
+                print(f"   📍 Reimpressão - Dados extraídos: Código={row[4] if len(row) > 4 else ''}, Localização={locacao}, Saldo={saldo_estoque}, Média={media_mensal}")
+                
                 item = {
-                    'data': row[2],
-                    'solicitante': row[3],
-                    'codigo': row[4],
-                    'descricao': row[5],
-                    'quantidade': int(row[6]) if row[6].isdigit() else 0,
-                    'alta_demanda': row[10].lower() in ['sim', 's', 'yes', 'y', 'true', '1'] if len(row) > 10 else False,
-                    'locacao_matriz': row[7],
-                    'saldo_estoque': int(row[8]) if row[8].isdigit() else 0,
-                    'media_mensal': int(row[9]) if row[9].isdigit() else 0,
-                    'qtd_pendente': int(row[6]) if row[6].isdigit() else 0,
+                    'data': row[2] if len(row) > 2 else '',
+                    'solicitante': row[3] if len(row) > 3 else '',
+                    'codigo': row[4] if len(row) > 4 else '',
+                    'descricao': row[5] if len(row) > 5 else '',
+                    'quantidade': quantidade,
+                    'alta_demanda': alta_demanda,
+                    'locacao_matriz': locacao,
+                    'saldo_estoque': saldo_estoque,
+                    'media_mensal': media_mensal,
+                    'qtd_pendente': quantidade,
                     'qtd_separada': 0
                 }
                 itens_data.append(item)
@@ -4947,14 +5062,38 @@ def buscar_solicitacoes_selecionadas(ids_selecionados):
                     }
                     
                     # Enriquecer com dados da matriz
-                    if matriz_data and solicitacao['codigo'] in matriz_data:
-                        matriz_item = matriz_data[solicitacao['codigo']]
+                    codigo_limpo = str(solicitacao['codigo']).strip()
+                    if matriz_data and codigo_limpo in matriz_data:
+                        matriz_item = matriz_data[codigo_limpo]
                         solicitacao['saldo_estoque'] = matriz_item['saldo_estoque']
-                        solicitacao['locacao_matriz'] = matriz_item['locacao_matriz']
-                        solicitacao['media_mensal'] = matriz_item['media_mensal']
+                        solicitacao['locacao_matriz'] = matriz_item['locacao_matriz'] if matriz_item.get('locacao_matriz') else '1 E5 E03/F03'
+                        solicitacao['media_mensal'] = matriz_item['media_mensal'] if matriz_item.get('media_mensal') else 41
+                        print(f"   ✅ Dados da matriz carregados para código {codigo_limpo}: Localização={solicitacao['locacao_matriz']}, Média={solicitacao['media_mensal']}")
+                    else:
+                        print(f"   ⚠️ Código {codigo_limpo} NÃO encontrado na matriz. Usando valores padrão: Localização={solicitacao['locacao_matriz']}, Média={solicitacao['media_mensal']}")
+                        # Tentar buscar com diferentes variações do código
+                        codigo_variacoes = [
+                            codigo_limpo.upper(),
+                            codigo_limpo.lower(),
+                            codigo_limpo,
+                            codigo_limpo.replace(' ', ''),
+                            codigo_limpo.replace('-', ''),
+                        ]
+                        encontrado = False
+                        for cod_var in codigo_variacoes:
+                            if matriz_data and cod_var in matriz_data:
+                                matriz_item = matriz_data[cod_var]
+                                solicitacao['saldo_estoque'] = matriz_item['saldo_estoque']
+                                solicitacao['locacao_matriz'] = matriz_item['locacao_matriz'] if matriz_item.get('locacao_matriz') else '1 E5 E03/F03'
+                                solicitacao['media_mensal'] = matriz_item['media_mensal'] if matriz_item.get('media_mensal') else 41
+                                print(f"   ✅ Dados da matriz encontrados com variação '{cod_var}': Localização={solicitacao['locacao_matriz']}, Média={solicitacao['media_mensal']}")
+                                encontrado = True
+                                break
+                        if not encontrado:
+                            print(f"   ⚠️ Nenhuma variação do código {codigo_limpo} encontrada na matriz")
                     
                     solicitacoes_encontradas.append(solicitacao)
-                    print(f"   ✅ Encontrada solicitação ID {row_id} -> {id_solicitacao}: {solicitacao['solicitante']} - {solicitacao['codigo']}")
+                    print(f"   ✅ Encontrada solicitação ID {row_id} -> {id_solicitacao}: {solicitacao['solicitante']} - {solicitacao['codigo']} | Loc: {solicitacao['locacao_matriz']} | Média: {solicitacao['media_mensal']}")
                 
                 except Exception as e:
                     print(f"   ⚠️ Erro ao processar linha {index + 1}: {e}")
