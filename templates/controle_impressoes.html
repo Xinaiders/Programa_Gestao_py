@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Controle de Impressões{% endblock %}
+
+{% block styles %}
+<style>
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.8rem 0;
+    margin-bottom: 1rem;
+    border-radius: 0 0 10px 10px;
+}
+
+.dashboard-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+    color: white;
+}
+
+.dashboard-subtitle {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    margin-bottom: 0;
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Padronizado -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="dashboard-title">
+                        <i class="fas fa-clipboard-list me-3"></i>Controle de Romaneios
+                    </h1>
+                    <p class="dashboard-subtitle">Gerencie todos os romaneios de separação do sistema</p>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{{ url_for('solicitacoes') }}" class="btn btn-sm btn-outline-light">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Voltar
+                        </a>
+                        <button type="button" class="btn btn-sm btn-success" onclick="criarAbaRealizarBaixa()">
+                            <i class="fas fa-plus me-1"></i>
+                            Criar Aba
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="atualizarLista()">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Atualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="filtroStatus" class="form-label">Status</label>
+                            <select class="form-select" id="filtroStatus">
+                                <option value="">Todos</option>
+                                <option value="Pendente" {% if filtros.status == 'Pendente' %}selected{% endif %}>Pendente</option>
+                                <option value="Processada" {% if filtros.status == 'Processada' %}selected{% endif %}>Processada</option>
+                                <option value="Cancelada" {% if filtros.status == 'Cancelada' %}selected{% endif %}>Cancelada</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtroUsuario" class="form-label">Usuário</label>
+                            <input type="text" class="form-control" id="filtroUsuario" placeholder="Filtrar por usuário" value="{{ filtros.usuario }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filtroData" class="form-label">Data</label>
+                            <input type="date" class="form-control" id="filtroData" value="{{ filtros.data }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="buscaId" class="form-label">Buscar por ID</label>
+                            <input type="text" class="form-control" id="buscaId" placeholder="Ex: ROM-000001" value="{{ filtros.id }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-primary" onclick="aplicarFiltros()">
+                                    <i class="fas fa-filter me-1"></i>
+                                    Filtrar
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="limparFiltros()">
+                                    <i class="fas fa-times me-1"></i>
+                                    Limpar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Impressões -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Romaneios
+                        <span class="badge bg-primary ms-2" id="totalRomaneios">{{ impressoes|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if impressoes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID Romaneio</th>
+                                    <th>Data/Hora</th>
+                                    <th>Usuário</th>
+                                    <th>Status</th>
+                                    <th>Total Itens</th>
+                                    <th class="text-center">PDF</th>
+                                    <th>Observações</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for impressao in impressoes %}
+                                <tr>
+                                    <td>
+                                        <code class="text-primary">{{ impressao.id_impressao }}</code>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <span>{{ impressao.data_impressao.split(' ')[0] }}</span>
+                                            <small class="text-muted">{{ impressao.data_impressao.split(' ')[1] }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ impressao.usuario_impressao }}</span>
+                                    </td>
+                                    <td>
+                                        {% if impressao.status == 'Pendente' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock me-1"></i>
+                                                {{ impressao.status }}
+                                            </span>
+                                        {% elif impressao.status == 'Processada' or impressao.status == 'Processado' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>
+                                                {{ impressao.status }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times me-1"></i>
+                                                {{ impressao.status }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ impressao.total_itens }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if impressao.pdf_info.existe %}
+                                            {% if impressao.pdf_info.local == 'cloud_storage' %}
+                                                <span class="badge bg-success" title="PDF {{ impressao.pdf_info.tipo|title }} salvo no Cloud Storage - {{ impressao.pdf_info.data_modificacao.strftime('%d/%m/%Y %H:%M') if impressao.pdf_info.data_modificacao else 'Data não disponível' }}">
+                                                    <i class="fas fa-file-pdf me-1"></i>
+                                                    <i class="fas fa-cloud" style="font-size: 0.8em;"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-info" title="PDF {{ impressao.pdf_info.tipo|title }} local - {{ impressao.pdf_info.data_modificacao.strftime('%d/%m/%Y %H:%M') if impressao.pdf_info.data_modificacao else 'Data não disponível' }}">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                </span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary" title="PDF não encontrado">
+                                                <i class="fas fa-file-times"></i>
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">{{ impressao.observacoes[:50] }}{% if impressao.observacoes|length > 50 %}...{% endif %}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('detalhes_impressao', id_impressao=impressao.id_impressao) }}" 
+                                               class="btn btn-sm btn-outline-primary" 
+                                               data-bs-toggle="tooltip" title="Ver Detalhes">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if impressao.pdf_info.existe %}
+                                                <a href="{{ url_for('imprimir_romaneio', id_impressao=impressao.id_impressao) }}" 
+                                                   class="btn btn-sm btn-outline-info" 
+                                                   data-bs-toggle="tooltip" 
+                                                   title="Imprimir Romaneio ({{ impressao.pdf_info.tipo|title }})" 
+                                                   target="_blank">
+                                                    <i class="fas fa-print"></i>
+                                                </a>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-outline-secondary" 
+                                                        disabled
+                                                        data-bs-toggle="tooltip" 
+                                                        title="PDF não encontrado">
+                                                    <i class="fas fa-print"></i>
+                                                </button>
+                                            {% endif %}
+                                            {% if impressao.status == 'Pendente' %}
+                                            <a href="{{ url_for('processar_romaneio', id_impressao=impressao.id_impressao) }}" 
+                                               class="btn btn-sm btn-success" 
+                                               data-bs-toggle="tooltip" title="Processar Romaneio - Registrar Separação">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhum romaneio pendente</h5>
+                        <p class="text-muted">Todos os romaneios foram processados ou não há romaneios no sistema.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function atualizarLista() {
+    location.reload();
+}
+
+function aplicarFiltros() {
+    const status = document.getElementById('filtroStatus').value;
+    const usuario = document.getElementById('filtroUsuario').value;
+    const data = document.getElementById('filtroData').value;
+    const id = document.getElementById('buscaId').value;
+    
+    // Construir URL com parâmetros
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (usuario) params.append('usuario', usuario);
+    if (data) params.append('data', data);
+    if (id) params.append('id', id);
+    
+    // Redirecionar com filtros
+    const url = '/controle-impressoes' + (params.toString() ? '?' + params.toString() : '');
+    window.location.href = url;
+}
+
+function limparFiltros() {
+    // Redirecionar para a página sem filtros
+    window.location.href = '/controle-impressoes';
+}
+
+function buscarPorId() {
+    // Aplicar filtro de ID
+    aplicarFiltros();
+}
+
+// Permitir busca ao pressionar Enter
+document.getElementById('buscaId').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        buscarPorId();
+    }
+});
+
+// Inicializar tooltips
+function criarAbaRealizarBaixa() {
+    if (confirm('Deseja criar a aba "Realizar baixa" na planilha? Esta ação criará uma nova aba com a estrutura especificada.')) {
+        fetch('/criar-aba-realizar-baixa', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ ' + data.message);
+            } else {
+                alert('❌ ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('❌ Erro ao criar aba: ' + error.message);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

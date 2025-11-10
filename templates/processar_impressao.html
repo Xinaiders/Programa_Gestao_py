@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Processar Impressão{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-primary">
+                        <i class="fas fa-clipboard-check me-2"></i>
+                        Processar Romaneio
+                    </h1>
+                    <p class="text-muted mb-0">
+                        <code class="text-primary">{{ id_impressao }}</code>
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('controle_impressoes') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Voltar
+                    </a>
+                    <button type="button" class="btn btn-success" onclick="processarImpressao()">
+                        <i class="fas fa-check me-1"></i>
+                        Salvar e Processar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informações da Impressão -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Informações do Romaneio
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>ID do Romaneio:</strong><br>
+                            <code class="text-primary">{{ id_impressao }}</code>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Total de Itens:</strong><br>
+                            <span class="badge bg-primary fs-6">{{ itens|length }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Status:</strong><br>
+                            <span class="badge bg-warning">
+                                <i class="fas fa-clock me-1"></i>
+                                Pendente
+                            </span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Data de Criação:</strong><br>
+                            <span class="text-muted">{{ itens[0].created_at if itens else 'N/A' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulário de Separação -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Separação de Materiais
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="formProcessarImpressao">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="5%">#</th>
+                                        <th width="15%">Código</th>
+                                        <th width="25%">Descrição</th>
+                                        <th width="10%">Unidade</th>
+                                        <th width="10%">Qtd Solicitada</th>
+                                        <th width="10%">Qtd Separada</th>
+                                        <th width="10%">Saldo Estoque</th>
+                                        <th width="15%">Observações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in itens %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ item.codigo }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">{{ item.descricao }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">{{ item.unidade }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary fs-6">{{ item.quantidade }}</span>
+                                        </td>
+                                        <td>
+                                            <input type="number" 
+                                                   class="form-control qtd-separada" 
+                                                   name="qtd_separada_{{ item.id_solicitacao }}"
+                                                   value="{{ item.qtd_separada if item.qtd_separada > 0 else '' }}"
+                                                   min="0" 
+                                                   max="{{ item.quantidade }}"
+                                                   data-solicitacao="{{ item.id_solicitacao }}"
+                                                   data-max="{{ item.quantidade }}"
+                                                   placeholder="0">
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">{{ item.saldo_estoque }}</span>
+                                        </td>
+                                        <td>
+                                            <input type="text" 
+                                                   class="form-control form-control-sm" 
+                                                   name="obs_{{ item.id_solicitacao }}"
+                                                   value="{{ item.observacoes_item }}"
+                                                   placeholder="Observações">
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Resumo -->
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light" style="background-color: var(--bg-secondary) !important;">
+                                    <div class="card-body" style="color: var(--text-primary) !important;">
+                                        <h6 class="card-title" style="color: var(--text-primary) !important;">Resumo da Separação</h6>
+                                        <p class="mb-1">
+                                            <strong>Total de Itens:</strong> 
+                                            <span id="totalItens">{{ itens|length }}</span>
+                                        </p>
+                                        <p class="mb-1">
+                                            <strong>Itens Separados:</strong> 
+                                            <span id="itensSeparados">0</span>
+                                        </p>
+                                        <p class="mb-0">
+                                            <strong>Itens Pendentes:</strong> 
+                                            <span id="itensPendentes">{{ itens|length }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light" style="background-color: var(--bg-secondary) !important;">
+                                    <div class="card-body" style="color: var(--text-primary) !important;">
+                                        <h6 class="card-title" style="color: var(--text-primary) !important;">Observações Gerais</h6>
+                                        <textarea class="form-control" 
+                                                  name="observacoes_gerais" 
+                                                  rows="3" 
+                                                  placeholder="Observações gerais sobre a separação..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Atualizar resumo em tempo real
+document.addEventListener('DOMContentLoaded', function() {
+    const qtdInputs = document.querySelectorAll('.qtd-separada');
+    
+    qtdInputs.forEach(input => {
+        input.addEventListener('input', atualizarResumo);
+        input.addEventListener('change', validarQuantidade);
+    });
+    
+    atualizarResumo();
+});
+
+function atualizarResumo() {
+    const qtdInputs = document.querySelectorAll('.qtd-separada');
+    let itensSeparados = 0;
+    
+    qtdInputs.forEach(input => {
+        const valor = parseInt(input.value) || 0;
+        if (valor > 0) {
+            itensSeparados++;
+        }
+    });
+    
+    const totalItens = qtdInputs.length;
+    const itensPendentes = totalItens - itensSeparados;
+    
+    document.getElementById('itensSeparados').textContent = itensSeparados;
+    document.getElementById('itensPendentes').textContent = itensPendentes;
+}
+
+function validarQuantidade(input) {
+    const max = parseInt(input.dataset.max);
+    const valor = parseInt(input.value) || 0;
+    
+    if (valor > max) {
+        input.value = max;
+        showNotification(`Quantidade não pode ser maior que ${max}`, 'warning');
+    }
+    
+    if (valor < 0) {
+        input.value = 0;
+    }
+}
+
+function processarImpressao() {
+    // Validar se pelo menos um item foi separado
+    const qtdInputs = document.querySelectorAll('.qtd-separada');
+    let temSeparacao = false;
+    
+    qtdInputs.forEach(input => {
+        const valor = parseInt(input.value) || 0;
+        if (valor > 0) {
+            temSeparacao = true;
+        }
+    });
+    
+    if (!temSeparacao) {
+        showNotification('Informe pelo menos uma quantidade separada', 'warning');
+        return;
+    }
+    
+    // Confirmar processamento
+    if (!confirm('Confirma o processamento desta impressão? Esta ação não pode ser desfeita.')) {
+        return;
+    }
+    
+    // Coletar dados do formulário
+    const formData = new FormData(document.getElementById('formProcessarImpressao'));
+    const dados = {};
+    
+    // Processar quantidades separadas
+    qtdInputs.forEach(input => {
+        const solicitacao = input.dataset.solicitacao;
+        const qtd = parseInt(input.value) || 0;
+        dados[`qtd_${solicitacao}`] = qtd;
+    });
+    
+    // Processar observações
+    document.querySelectorAll('input[name^="obs_"]').forEach(input => {
+        const solicitacao = input.name.replace('obs_', '');
+        dados[`obs_${solicitacao}`] = input.value;
+    });
+    
+    // Observações gerais
+    dados.observacoes_gerais = formData.get('observacoes_gerais') || '';
+    
+    // Enviar dados
+    fetch(`/processar-impressao-dados/${id_impressao}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify(dados)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Impressão processada com sucesso!', 'success');
+            setTimeout(() => {
+                window.location.href = '/controle-impressoes';
+            }, 2000);
+        } else {
+            showNotification(`Erro: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showNotification('Erro ao processar impressão', 'error');
+    });
+}
+
+// Função para mostrar notificações
+function showNotification(message, type) {
+    // Implementar sistema de notificações
+    alert(message);
+}
+</script>
+
+<style>
+.qtd-separada {
+    text-align: center;
+    font-weight: bold;
+}
+
+.qtd-separada:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+</style>
+{% endblock %}

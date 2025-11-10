@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Usuários - Sistema de Gestão de Estoque{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-users me-2"></i>Gerenciar Usuários</h2>
+                <div>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCriarUsuario">
+                        <i class="fas fa-plus me-2"></i>Criar Novo Usuário
+                    </button>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-arrow-left me-2"></i>Voltar
+                    </a>
+                </div>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-user-shield me-2"></i>Usuários do Sistema
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Usuário</th>
+                                    <th>Email</th>
+                                    <th>Tipo de Acesso</th>
+                                    <th>Data de Criação</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in usuarios %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>
+                                        <strong>{{ user.username }}</strong>
+                                        {% if not user.is_active %}
+                                            <span class="badge bg-warning ms-2">Desativado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.is_admin %}
+                                            <span class="badge bg-danger">Administrador</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Operador</span>
+                                        {% endif %}
+                                        {% if not user.is_active %}
+                                            <span class="badge bg-dark ms-2">Inativo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else 'N/A' }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-info btn-edit-email" 
+                                                    data-user-id="{{ user.id }}"
+                                                    data-user-name="{{ user.username }}"
+                                                    data-user-email="{{ user.email }}">
+                                                <i class="fas fa-envelope me-1"></i>Editar Email
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary btn-change-password" 
+                                                    data-user-id="{{ user.id }}"
+                                                    data-user-name="{{ user.username }}">
+                                                <i class="fas fa-key me-1"></i>Nova Senha
+                                            </button>
+                                            {% if user.is_active %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger btn-action-user" 
+                                                    data-user-id="{{ user.id }}"
+                                                    data-user-name="{{ user.username }}"
+                                                    data-is-active="true">
+                                                <i class="fas fa-user-times me-1"></i>Desativar
+                                            </button>
+                                            {% else %}
+                                            <button type="button" class="btn btn-sm btn-outline-success btn-action-user" 
+                                                    data-user-id="{{ user.id }}"
+                                                    data-user-name="{{ user.username }}"
+                                                    data-is-active="false">
+                                                <i class="fas fa-user-check me-1"></i>Ativar
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Informação:</strong> As senhas são armazenadas de forma segura usando hash no banco de dados. 
+                Não é possível visualizar a senha original por questões de segurança.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Criar Usuário -->
+<div class="modal fade" id="modalCriarUsuario" tabindex="-1" aria-labelledby="modalCriarUsuarioLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalCriarUsuarioLabel">
+                    <i class="fas fa-user-plus me-2"></i>Criar Novo Usuário
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formCriarUsuario" method="POST" action="{{ url_for('criar_usuario') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Usuário <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="username" name="username" autocomplete="username" required>
+                        <small class="text-muted">Nome de usuário para login</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" autocomplete="email" required>
+                        <small class="text-muted">Email do usuário</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Senha <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" required minlength="6">
+                        <small class="text-muted">Senha inicial (mínimo 6 caracteres)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Acesso</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="is_admin" id="tipoOperador" value="0" checked>
+                            <label class="form-check-label" for="tipoOperador">
+                                Operador
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="is_admin" id="tipoAdmin" value="1">
+                            <label class="form-check-label" for="tipoAdmin">
+                                Administrador
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Criar Usuário
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Ação -->
+<div class="modal fade" id="modalConfirmarAcao" tabindex="-1" aria-labelledby="modalConfirmarAcaoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark" id="modalHeaderAcao">
+                <h5 class="modal-title" id="modalConfirmarAcaoLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Ação
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p id="textoConfirmacao">Tem certeza que deseja realizar esta ação?</p>
+            </div>
+            <form id="formGerenciarUsuario" method="POST" action="{{ url_for('desativar_usuario') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="user_id" id="user_id_acao" value="">
+                <input type="hidden" name="action" id="action_acao" value="">
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-warning" id="btnConfirmarAcao">
+                        <i class="fas fa-check me-1"></i>Confirmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Email -->
+<div class="modal fade" id="modalEditarEmail" tabindex="-1" aria-labelledby="modalEditarEmailLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="modalEditarEmailLabel">
+                    <i class="fas fa-envelope me-2"></i>Editar Email
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formEditarEmail" method="POST" action="{{ url_for('editar_email_usuario') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <p class="mb-3">Alterando email do usuário <strong id="nomeUsuarioEmail"></strong></p>
+                    <input type="hidden" name="user_id" id="user_id_email" value="">
+                    <div class="mb-3">
+                        <label for="novo_email" class="form-label">Novo Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="novo_email" name="novo_email" autocomplete="email" required>
+                        <small class="text-muted">Email do usuário</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-info" id="btnSalvarEmail">
+                        <i class="fas fa-save me-1"></i>Salvar Email
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Alterar Senha (Admin) -->
+<div class="modal fade" id="modalAlterarSenhaAdmin" tabindex="-1" aria-labelledby="modalAlterarSenhaAdminLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalAlterarSenhaAdminLabel">
+                    <i class="fas fa-key me-2"></i>Alterar Senha do Usuário
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="formAlterarSenhaAdmin" method="POST" action="{{ url_for('alterar_senha_usuario_admin') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body">
+                    <p class="mb-3">Alterando senha do usuário <strong id="nomeUsuarioSenha"></strong></p>
+                    <p class="text-muted mb-3"><i class="fas fa-info-circle me-1"></i>Como administrador, você pode definir uma nova senha sem conhecer a senha atual.</p>
+                    <input type="hidden" name="user_id" id="user_id_senha" value="">
+                    <div class="mb-3">
+                        <label for="nova_senha" class="form-label">Nova Senha <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="nova_senha" name="nova_senha" autocomplete="new-password" required minlength="6">
+                        <small class="text-muted">Mínimo 6 caracteres</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmar_senha" class="form-label">Confirmar Senha <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="confirmar_senha" name="confirmar_senha" autocomplete="new-password" required minlength="6">
+                        <small class="text-muted">Digite novamente para confirmar</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="btnAlterarSenha">
+                        <i class="fas fa-save me-1"></i>Alterar Senha
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block scripts %}
+<script>
+function confirmarAcao(userId, username, isActiveBool) {
+    // Converter string para boolean
+    const isActive = isActiveBool === true || isActiveBool === 'true';
+    
+    document.getElementById('user_id_acao').value = userId;
+    const modal = document.getElementById('modalConfirmarAcao');
+    const modalTitle = document.getElementById('modalConfirmarAcaoLabel');
+    const texto = document.getElementById('textoConfirmacao');
+    const btnConfirmar = document.getElementById('btnConfirmarAcao');
+    const header = document.getElementById('modalHeaderAcao');
+    
+    if (isActive) {
+        // Desativar
+        modalTitle.innerHTML = '<i class="fas fa-user-times me-2"></i>Desativar Usuário';
+        texto.innerHTML = `Tem certeza que deseja <strong>desativar</strong> o usuário <strong>${username}</strong>?<br><small class="text-muted">Ele não poderá mais fazer login, mas seu histórico será preservado.</small>`;
+        btnConfirmar.className = 'btn btn-danger';
+        btnConfirmar.innerHTML = '<i class="fas fa-user-times me-1"></i>Desativar';
+        header.className = 'modal-header bg-danger text-white';
+        document.getElementById('action_acao').value = 'desativar';
+    } else {
+        // Ativar
+        modalTitle.innerHTML = '<i class="fas fa-user-check me-2"></i>Ativar Usuário';
+        texto.innerHTML = `Tem certeza que deseja <strong>ativar</strong> o usuário <strong>${username}</strong>?<br><small class="text-muted">Ele voltará a ter acesso ao sistema.</small>`;
+        btnConfirmar.className = 'btn btn-success';
+        btnConfirmar.innerHTML = '<i class="fas fa-user-check me-1"></i>Ativar';
+        header.className = 'modal-header bg-success text-white';
+        document.getElementById('action_acao').value = 'ativar';
+    }
+    
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+// Adicionar loading no formulário de criação
+document.getElementById('formCriarUsuario').addEventListener('submit', function(e) {
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Criando...';
+});
+
+// Adicionar loading no formulário de gerenciamento
+document.getElementById('formGerenciarUsuario').addEventListener('submit', function(e) {
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processando...';
+});
+
+// Event listeners para botões de ativar/desativar
+document.querySelectorAll('.btn-action-user').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const userId = this.getAttribute('data-user-id');
+        const username = this.getAttribute('data-user-name');
+        const isActive = this.getAttribute('data-is-active') === 'true';
+        confirmarAcao(userId, username, isActive);
+    });
+});
+
+// Event listeners para editar email
+document.querySelectorAll('.btn-edit-email').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const userId = this.getAttribute('data-user-id');
+        const username = this.getAttribute('data-user-name');
+        const userEmail = this.getAttribute('data-user-email');
+        
+        console.log('📧 Abrindo modal para editar email - Usuário:', username);
+        
+        document.getElementById('user_id_email').value = userId;
+        document.getElementById('nomeUsuarioEmail').textContent = username;
+        document.getElementById('novo_email').value = userEmail;
+        
+        const modal = new bootstrap.Modal(document.getElementById('modalEditarEmail'));
+        modal.show();
+    });
+});
+
+// Event listeners para alterar senha
+document.querySelectorAll('.btn-change-password').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const userId = this.getAttribute('data-user-id');
+        const username = this.getAttribute('data-user-name');
+        
+        console.log('🔑 Abrindo modal para alterar senha - Usuário:', username);
+        
+        document.getElementById('user_id_senha').value = userId;
+        document.getElementById('nomeUsuarioSenha').textContent = username;
+        
+        // Limpar campos
+        document.getElementById('nova_senha').value = '';
+        document.getElementById('confirmar_senha').value = '';
+        
+        const modal = new bootstrap.Modal(document.getElementById('modalAlterarSenhaAdmin'));
+        modal.show();
+    });
+});
+
+// Validação de senha no formulário
+document.getElementById('formAlterarSenhaAdmin').addEventListener('submit', function(e) {
+    const novaSenha = document.getElementById('nova_senha').value;
+    const confirmarSenha = document.getElementById('confirmar_senha').value;
+    
+    if (novaSenha !== confirmarSenha) {
+        e.preventDefault();
+        alert('As senhas não coincidem!');
+        return false;
+    }
+    
+    if (!novaSenha || novaSenha.length < 6) {
+        e.preventDefault();
+        alert('A senha deve ter no mínimo 6 caracteres!');
+        return false;
+    }
+    
+    // Permitir envio - não há e.preventDefault() aqui
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Alterando...';
+});
+
+// Event listener para editar email
+document.getElementById('formEditarEmail').addEventListener('submit', function(e) {
+    const novoEmail = document.getElementById('novo_email').value;
+    
+    if (!novoEmail) {
+        e.preventDefault();
+        alert('Por favor, preencha o email!');
+        return false;
+    }
+    
+    // Permitir envio
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+});
+
+// Limpar campos ao fechar modal
+document.getElementById('modalEditarEmail').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('novo_email').value = '';
+    document.getElementById('btnSalvarEmail').disabled = false;
+    document.getElementById('btnSalvarEmail').innerHTML = '<i class="fas fa-save me-1"></i>Salvar Email';
+});
+
+document.getElementById('modalAlterarSenhaAdmin').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('nova_senha').value = '';
+    document.getElementById('confirmar_senha').value = '';
+    document.getElementById('btnAlterarSenha').disabled = false;
+    document.getElementById('btnAlterarSenha').innerHTML = '<i class="fas fa-save me-1"></i>Alterar Senha';
+});
+</script>
+{% endblock %}
+
